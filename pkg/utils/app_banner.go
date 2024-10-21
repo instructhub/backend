@@ -22,6 +22,8 @@ InscructHub API
 Version: %s
 Gin Version: %s
 IP: http://127.0.0.1:%s
+
+Mongodb: Successfully connected
 `, os.Getenv("VERSION"), gin.Version, os.Getenv("PORT"))
 
 	// Print the information box after server starts
