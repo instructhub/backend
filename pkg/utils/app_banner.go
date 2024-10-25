@@ -18,7 +18,7 @@ func PrintAppBanner() {
 
 	// Information to display
 	info := fmt.Sprintf(`
-InscructHub API
+InstructHub API
 Version: %s
 Gin Version: %s
 IP: http://127.0.0.1:%s

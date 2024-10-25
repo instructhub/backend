@@ -6,6 +6,7 @@ import (
 	"github.com/instructhub/backend/app/models"
 	"github.com/instructhub/backend/app/queues"
 	"github.com/instructhub/backend/pkg/utils"
+	"github.com/markbates/goth/gothic"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/gin-gonic/gin"
@@ -145,4 +146,52 @@ func Login(c *gin.Context) {
 	c.SetCookie("refresh_token", session.SecretKey, int(session.ExpiresAt.Unix()), "/refresh", "", false, true)
 	c.SetCookie("access_token", accessToken, int(accessTokenExpiresAt.Unix()), "/", "", false, true)
 	utils.SimpleResponse(c, 200, "Login successful", nil)
+}
+
+func GoogleOAuthHandler(c *gin.Context) {
+	q := c.Request.URL.Query()
+	q.Add("provider", "google")
+	c.Request.URL.RawQuery = q.Encode()
+	gothic.BeginAuthHandler(c.Writer, c.Request)
+}
+
+func GoogleOAuthCallbackHandler(c *gin.Context) {
+	q := c.Request.URL.Query()
+	q.Add("provider", "google")
+	c.Request.URL.RawQuery = q.Encode()
+	request, err := gothic.CompleteUserAuth(c.Writer, c.Request)
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Interal server error", err)
+		return
+	}
+
+	// Add more check mechanism here
+	_, err = queues.GetUserQueueByOAuthID(request.UserID)
+	if err == nil {
+		utils.SimpleResponse(c, 200, "Login successful", nil)
+		return
+	} else if err != mongo.ErrNoDocuments {
+		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		return
+	}
+
+	user := models.User{
+		ID:        utils.GenerateID(),
+		Avatar:    request.AvatarURL,
+		Username:  request.Name,
+		Email:     request.Email,
+		Provider:  request.Provider,
+		OAuthID:   request.UserID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	err = queues.CreateUserQueue(user)
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		return
+	}
+
+	// Respond with success
+	utils.SimpleResponse(c, 200, "Signup successful", nil)
 }

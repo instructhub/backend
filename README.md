@@ -11,7 +11,7 @@ To run this backend application, follow these steps:
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/instructhub/backend
    ```
 
 2. **Navigate to the project directory:**
