@@ -26,13 +26,14 @@ func GetUserQueueByID(id int) (models.User, error) {
 	return user, err
 }
 
-func GetUserQueueByOAuthID(oauth_id string) (models.User, error) {
-	var user models.User
-	err := database.GetCollection("users").FindOne(context.Background(), bson.M{"oauth_id": oauth_id}).Decode(&user)
-	return user, err
-}
-
 func CreateUserQueue(user models.User) error {
 	_, err := database.GetCollection("users").InsertOne(context.Background(), user)
+	return err
+}
+
+func AppendUserProviderQueue(id int, update bson.M) error {
+	filter := bson.M{"id": id}
+
+	_, err := database.GetCollection("users").UpdateOne(context.Background(), filter, update)
 	return err
 }

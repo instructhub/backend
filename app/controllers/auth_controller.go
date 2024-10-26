@@ -7,6 +7,7 @@ import (
 	"github.com/instructhub/backend/app/queues"
 	"github.com/instructhub/backend/pkg/utils"
 	"github.com/markbates/goth/gothic"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/gin-gonic/gin"
@@ -148,16 +149,16 @@ func Login(c *gin.Context) {
 	utils.SimpleResponse(c, 200, "Login successful", nil)
 }
 
-func GoogleOAuthHandler(c *gin.Context) {
+func OAuthHandler(c *gin.Context, cprovider string) {
 	q := c.Request.URL.Query()
-	q.Add("provider", "google")
+	q.Add("provider", cprovider)
 	c.Request.URL.RawQuery = q.Encode()
 	gothic.BeginAuthHandler(c.Writer, c.Request)
 }
 
-func GoogleOAuthCallbackHandler(c *gin.Context) {
+func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	q := c.Request.URL.Query()
-	q.Add("provider", "google")
+	q.Add("provider", cprovider)
 	c.Request.URL.RawQuery = q.Encode()
 	request, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
@@ -165,25 +166,48 @@ func GoogleOAuthCallbackHandler(c *gin.Context) {
 		return
 	}
 
-	// Add more check mechanism here
-	_, err = queues.GetUserQueueByOAuthID(request.UserID)
-	if err == nil {
-		utils.SimpleResponse(c, 200, "Login successful", nil)
-		return
-	} else if err != mongo.ErrNoDocuments {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
-		return
-	}
+	var user models.User
+	user, err = queues.GetUserQueueByEmail(request.Email)
 
-	user := models.User{
-		ID:        utils.GenerateID(),
-		Avatar:    request.AvatarURL,
-		Username:  request.Name,
-		Email:     request.Email,
-		Provider:  request.Provider,
-		OAuthID:   request.UserID,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			user = models.User{
+				ID:        utils.GenerateID(),
+				Avatar:    request.AvatarURL,
+				Username:  request.Name,
+				Email:     request.Email,
+				Providers: []models.Provider{{Provider: request.Provider, OAuthID: request.UserID}}, // IDK why it's double braces
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+		}
+	} else {
+		for i, p := range user.Providers {
+			if p.Provider == request.Provider {
+				if user.Providers[i].OAuthID == request.UserID {
+					utils.SimpleResponse(c, 200, "Login successful + Added another provider", nil)
+					return
+				} else {
+					utils.SimpleResponse(c, 500, "OAuthID mismatched!", nil)
+					return
+				}
+			}
+		}
+		// If provider is new, append it
+		user.Providers = append(user.Providers, models.Provider{Provider: request.Provider, OAuthID: request.UserID})
+		user.UpdatedAt = time.Now()
+
+		update := bson.M{
+			"$set": bson.M{
+				"providers": user.Providers,
+				"username":  user.UpdatedAt,
+			},
+		}
+
+		queues.AppendUserProviderQueue(int(user.ID), update)
+
+		utils.SimpleResponse(c, 200, "Login successful", nil)
+    return
 	}
 
 	err = queues.CreateUserQueue(user)
