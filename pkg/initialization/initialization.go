@@ -14,5 +14,5 @@ func Init() {
 	utils.InitSnowflake()
 	utils.InitVariables()
 	rand.Seed(uint64(time.Now().UnixNano()))
-  config.OAuthInit()
+	config.OAuthInit()
 }

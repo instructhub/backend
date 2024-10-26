@@ -185,7 +185,30 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		for i, p := range user.Providers {
 			if p.Provider == request.Provider {
 				if user.Providers[i].OAuthID == request.UserID {
-					utils.SimpleResponse(c, 200, "Login successful + Added another provider", nil)
+					session := models.Session{
+						SecretKey: utils.RandStringRunes(256),
+						UserID:    user.ID,
+						ExpiresAt: time.Now().Add(time.Hour * 24 * time.Duration(utils.CookieRefreshTokenExpires)),
+						CreatedAt: time.Now(),
+					}
+
+					err = queues.CreateSessionQueue(session)
+					if err != nil {
+						utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+						return
+					}
+
+					accessTokenExpiresAt := time.Now().Add(time.Minute * time.Duration(utils.CookieAccessTokenExpires))
+					accessToken, err := utils.GenerateNewJwtToken(user.ID, []string{}, accessTokenExpiresAt)
+					if err != nil {
+						utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+						return
+					}
+
+					c.SetCookie("refresh_token", session.SecretKey, int(session.ExpiresAt.Unix()), "/refresh", "", false, true)
+					c.SetCookie("access_token", accessToken, int(accessTokenExpiresAt.Unix()), "/", "", false, true)
+
+					utils.SimpleResponse(c, 200, "Login successful", nil)
 					return
 				} else {
 					utils.SimpleResponse(c, 500, "OAuthID mismatched!", nil)
@@ -199,15 +222,38 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 
 		update := bson.M{
 			"$set": bson.M{
-				"providers": user.Providers,
-				"updated_at":  user.UpdatedAt,
+				"providers":  user.Providers,
+				"updated_at": user.UpdatedAt,
 			},
 		}
 
 		queues.AppendUserProviderQueue(int(user.ID), update)
 
-		utils.SimpleResponse(c, 200, "Login successful", nil)
-    return
+		session := models.Session{
+			SecretKey: utils.RandStringRunes(256),
+			UserID:    user.ID,
+			ExpiresAt: time.Now().Add(time.Hour * 24 * time.Duration(utils.CookieRefreshTokenExpires)),
+			CreatedAt: time.Now(),
+		}
+
+		err = queues.CreateSessionQueue(session)
+		if err != nil {
+			utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+			return
+		}
+
+		accessTokenExpiresAt := time.Now().Add(time.Minute * time.Duration(utils.CookieAccessTokenExpires))
+		accessToken, err := utils.GenerateNewJwtToken(user.ID, []string{}, accessTokenExpiresAt)
+		if err != nil {
+			utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+			return
+		}
+
+		c.SetCookie("refresh_token", session.SecretKey, int(session.ExpiresAt.Unix()), "/refresh", "", false, true)
+		c.SetCookie("access_token", accessToken, int(accessTokenExpiresAt.Unix()), "/", "", false, true)
+
+		utils.SimpleResponse(c, 200, "Login successful + Added another provider", nil)
+		return
 	}
 
 	err = queues.CreateUserQueue(user)
