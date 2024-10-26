@@ -17,4 +17,6 @@ func AuthRoute(r *gin.Engine) {
   oauth.GET("/google/callback", func(c *gin.Context) { controllers.OAuthCallbackHandler(c, "google") })
   oauth.GET("/github", func(c *gin.Context) { controllers.OAuthHandler(c, "github") })
   oauth.GET("/github/callback", func(c *gin.Context) { controllers.OAuthCallbackHandler(c, "github") })
+  oauth.GET("/gitlab", func(c *gin.Context) { controllers.OAuthHandler(c, "gitlab") })
+  oauth.GET("/gitlab/callback", func(c *gin.Context) { controllers.OAuthCallbackHandler(c, "gitlab") })
 }

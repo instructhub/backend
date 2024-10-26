@@ -7,7 +7,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/providers/github"
-	// "github.com/markbates/goth/providers/gitlab"
+	"github.com/markbates/goth/providers/gitlab"
 	"github.com/markbates/goth/providers/google"
 )
 
@@ -33,10 +33,10 @@ func OAuthInit() {
 			"http://localhost:8080/auth/oauth/github/callback",
 		),
 
-		// gitlab.New(
-		// 	os.Getenv("GITLAB_KEY"),
-		// 	os.Getenv("GITLAB_SECRET"),
-		// 	"http://localhost:3000/auth/gitlab/callback",
-		// ),
+		gitlab.New(
+			os.Getenv("GITLAB_CLIENT_ID"),
+			os.Getenv("GITLAB_CLIENT_SECRET"),
+			"http://localhost:8080/auth/oauth/gitlab/callback",
+		),
 	)
 }
