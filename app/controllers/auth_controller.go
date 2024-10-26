@@ -168,10 +168,16 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		for i, p := range user.Providers {
 			if p.Provider == request.Provider {
 				if user.Providers[i].OAuthID == request.UserID {
+					err = utils.GenerateUserSession(c, user.ID)
+					if err != nil {
+						utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+						return
+					}
+
 					utils.SimpleResponse(c, 200, "Login successful and added another provider", nil)
 					return
 				} else {
-					utils.SimpleResponse(c, 500, "OAuthID mismatched!", nil)
+					utils.SimpleResponse(c, 403, "OAuthID mismatched!", nil)
 					return
 				}
 			}
