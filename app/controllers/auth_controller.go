@@ -200,7 +200,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		update := bson.M{
 			"$set": bson.M{
 				"providers": user.Providers,
-				"username":  user.UpdatedAt,
+				"updated_at":  user.UpdatedAt,
 			},
 		}
 
