@@ -17,11 +17,12 @@ func main() {
 	// Init all dependencies
 	initialization.Init()
 
-	// use custom logger
-
 	utils.PrintAppBanner()
 
 	routes.AuthRoute(r)
+
+	r.StaticFile("/favicon.ico", "./static/favicon.ico")
+	// use custom logger
 	r.Use(middleware.CustomLogger())
 
 	if err := r.Run(); err != nil {

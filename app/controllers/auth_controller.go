@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/instructhub/backend/app/models"
@@ -216,6 +217,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 
 	err = utils.GenerateUserSession(c, user.ID)
 	if err != nil {
+		fmt.Println(err.Error())
 		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
 		return
 	}

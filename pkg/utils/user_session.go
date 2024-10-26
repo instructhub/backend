@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,13 +26,12 @@ func GenerateUserSession(c *gin.Context, userID uint64) error {
 
 	for {
 		_, err = queues.GetSessionQueue(session.SecretKey)
-		if err != mongo.ErrNoDocuments {
-			continue
-		}
-		if err != nil {
+		if err == mongo.ErrNoDocuments {
+			break
+		} else if err != nil {
+			fmt.Println(err.Error())
 			return err
 		}
-		break
 	}
 
 	err = queues.CreateSessionQueue(session)
@@ -45,8 +45,8 @@ func GenerateUserSession(c *gin.Context, userID uint64) error {
 		return err
 	}
 
-	c.SetCookie("refresh_token", session.SecretKey, int(session.ExpiresAt.Unix()), "/refresh", "", false, true)
-	c.SetCookie("access_token", accessToken, int(accessTokenExpiresAt.Unix()), "/", "", false, true)
+	c.SetCookie("refresh_token", session.SecretKey, CookieRefreshTokenExpires * 24 * 60 * 60, "/auth/session/refresh", "", false, true)
+	c.SetCookie("access_token", accessToken, CookieAccessTokenExpires * 60, "/", "", false, true)
 
 	return nil
 }
