@@ -20,7 +20,7 @@ func GetUserQueueByUsername(username string) (models.User, error) {
 	return user, err
 }
 
-func GetUserQueueByID(id int) (models.User, error) {
+func GetUserQueueByID(id uint64) (models.User, error) {
 	var user models.User
 	err := database.GetCollection("users").FindOne(context.Background(), bson.M{"id": id}).Decode(&user)
 	return user, err
@@ -31,8 +31,15 @@ func CreateUserQueue(user models.User) error {
 	return err
 }
 
-func AppendUserProviderQueue(id int, update bson.M) error {
+func AppendUserProviderQueue(id uint64, user models.User) error {
 	filter := bson.M{"id": id}
+
+	update := bson.M{
+		"$set": bson.M{
+			"providers":  user.Providers,
+			"updated_at": user.UpdatedAt,
+		},
+	}
 
 	_, err := database.GetCollection("users").UpdateOne(context.Background(), filter, update)
 	return err

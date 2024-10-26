@@ -5,9 +5,9 @@ import (
 
 	"github.com/instructhub/backend/app/models"
 	"github.com/instructhub/backend/app/queues"
+	"github.com/instructhub/backend/pkg/encryption"
 	"github.com/instructhub/backend/pkg/utils"
 	"github.com/markbates/goth/gothic"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/gin-gonic/gin"
@@ -54,7 +54,7 @@ func Signup(c *gin.Context) {
 	}
 
 	user := models.User{
-		ID:        utils.GenerateID(),
+		ID:        encryption.GenerateID(),
 		Username:  request.Username,
 		Email:     request.Email,
 		Password:  request.Password,
@@ -63,7 +63,7 @@ func Signup(c *gin.Context) {
 	}
 
 	// Hash password
-	hashedPassword, err := utils.HashPassword(user.Password)
+	hashedPassword, err := encryption.HashPassword(user.Password)
 	if err != nil {
 		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
 		return
@@ -76,7 +76,13 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	utils.SimpleResponse(c, 200, "Signup successful", user)
+	err = utils.GenerateUserSession(c, user.ID)
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		return
+	}
+
+	utils.SimpleResponse(c, 200, "Signup successful", nil)
 }
 
 func Login(c *gin.Context) {
@@ -118,34 +124,18 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	match, err := utils.ComparePasswordAndHash(request.Password, user.Password)
+	match, err := encryption.ComparePasswordAndHash(request.Password, user.Password)
 	if err != nil || !match {
 		utils.SimpleResponse(c, 400, "Invalid password", nil)
 		return
 	}
 
-	session := models.Session{
-		SecretKey: utils.RandStringRunes(256),
-		UserID:    user.ID,
-		ExpiresAt: time.Now().Add(time.Hour * 24 * time.Duration(utils.CookieRefreshTokenExpires)),
-		CreatedAt: time.Now(),
-	}
-
-	err = queues.CreateSessionQueue(session)
+	err = utils.GenerateUserSession(c, user.ID)
 	if err != nil {
 		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
 		return
 	}
 
-	accessTokenExpiresAt := time.Now().Add(time.Minute * time.Duration(utils.CookieAccessTokenExpires))
-	accessToken, err := utils.GenerateNewJwtToken(user.ID, []string{}, accessTokenExpiresAt)
-	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
-		return
-	}
-
-	c.SetCookie("refresh_token", session.SecretKey, int(session.ExpiresAt.Unix()), "/refresh", "", false, true)
-	c.SetCookie("access_token", accessToken, int(accessTokenExpiresAt.Unix()), "/", "", false, true)
 	utils.SimpleResponse(c, 200, "Login successful", nil)
 }
 
@@ -169,23 +159,16 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	var user models.User
 	user, err = queues.GetUserQueueByEmail(request.Email)
 
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			user = models.User{
-				ID:        utils.GenerateID(),
-				Avatar:    request.AvatarURL,
-				Username:  request.Name,
-				Email:     request.Email,
-				Providers: []models.Provider{{Provider: request.Provider, OAuthID: request.UserID}}, // IDK why it's double braces
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			}
-		}
-	} else {
+	if err != nil && err != mongo.ErrNoDocuments {
+		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		return
+	}
+
+	if err == nil {
 		for i, p := range user.Providers {
 			if p.Provider == request.Provider {
 				if user.Providers[i].OAuthID == request.UserID {
-					utils.SimpleResponse(c, 200, "Login successful + Added another provider", nil)
+					utils.SimpleResponse(c, 200, "Login successful and added another provider", nil)
 					return
 				} else {
 					utils.SimpleResponse(c, 500, "OAuthID mismatched!", nil)
@@ -197,20 +180,35 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		user.Providers = append(user.Providers, models.Provider{Provider: request.Provider, OAuthID: request.UserID})
 		user.UpdatedAt = time.Now()
 
-		update := bson.M{
-			"$set": bson.M{
-				"providers": user.Providers,
-				"updated_at":  user.UpdatedAt,
-			},
+		queues.AppendUserProviderQueue(uint64(user.ID), user)
+
+		err = utils.GenerateUserSession(c, user.ID)
+		if err != nil {
+			utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+			return
 		}
 
-		queues.AppendUserProviderQueue(int(user.ID), update)
-
 		utils.SimpleResponse(c, 200, "Login successful", nil)
-    return
+		return
+	}
+
+	user = models.User{
+		ID:        encryption.GenerateID(),
+		Avatar:    request.AvatarURL,
+		Username:  request.Name,
+		Email:     request.Email,
+		Providers: []models.Provider{{Provider: request.Provider, OAuthID: request.UserID}}, // IDK why it's double braces
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	err = queues.CreateUserQueue(user)
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		return
+	}
+
+	err = utils.GenerateUserSession(c, user.ID)
 	if err != nil {
 		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
 		return
