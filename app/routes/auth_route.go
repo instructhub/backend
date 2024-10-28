@@ -3,14 +3,19 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/instructhub/backend/app/controllers"
+	"github.com/instructhub/backend/app/middleware"
+	testing "github.com/instructhub/backend/test"
 )
 
 func AuthRoute(r *gin.Engine) {
+	test := r.Group("/test")
+	test.Use(middleware.IsAuthorized())
+	test.GET("/authorize", testing.Handler)
+
 	auth := r.Group("/auth")
 
 	auth.POST("/signup", controllers.Signup)
 	auth.POST("/login", controllers.Login)
-	auth.POST("/refresh/:userID", controllers.RefreshAcctssToken)
 
 	oauth := auth.Group("/oauth")
 
