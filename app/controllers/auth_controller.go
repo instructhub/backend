@@ -169,7 +169,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
 		return
 	}
-	
+
 	if err == nil {
 		for i, p := range user.Providers {
 			if p.Provider == request.Provider {
@@ -229,4 +229,36 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 
 	// Respond with success
 	utils.SimpleResponse(c, 200, "Signup successful", nil)
+}
+
+func RefreshAcctssToken(c *gin.Context) {
+	refreshToken, err := c.Cookie("refresh_token")
+	if err != nil {
+		utils.SimpleResponse(c, 403, "Invide refresh token", nil)
+	}
+
+	userID := uint64(utils.Atoi(c.Param("userID")))
+
+	session, err := queues.GetSessionQueue(refreshToken)
+	if err == mongo.ErrNoDocuments {
+		utils.SimpleResponse(c, 403, "Invide refresh token", nil)
+		return
+	}
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal error", err.Error())
+	}
+
+	if session.UserID != userID {
+		utils.SimpleResponse(c, 403, "User ID not match with refresh_token", nil)
+		return
+	}
+
+	accessTokenExpiresAt := time.Now().Add(time.Minute * time.Duration(utils.CookieAccessTokenExpires))
+	accessToken, err := encryption.GenerateNewJwtToken(userID, []string{}, accessTokenExpiresAt)
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal error", nil)
+		return
+	}
+
+	c.SetCookie("access_token", accessToken, utils.CookieAccessTokenExpires * 60, "/", "", false, true)
 }

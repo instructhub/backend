@@ -46,7 +46,7 @@ func GenerateUserSession(c *gin.Context, userID uint64) error {
 		return err
 	}
 
-	c.SetCookie("refresh_token", session.SecretKey, CookieRefreshTokenExpires * 24 * 60 * 60, "/auth/session/refresh", "", false, true)
+	c.SetCookie("refresh_token", session.SecretKey, CookieRefreshTokenExpires * 24 * 60 * 60, "/auth/refresh/", "", false, true)
 	c.SetCookie("access_token", accessToken, CookieAccessTokenExpires * 60, "/", "", false, true)
 
 	return nil

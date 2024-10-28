@@ -10,6 +10,7 @@ func AuthRoute(r *gin.Engine) {
 
 	auth.POST("/signup", controllers.Signup)
 	auth.POST("/login", controllers.Login)
+	auth.POST("/refresh/:userID", controllers.RefreshAcctssToken)
 
 	oauth := auth.Group("/oauth")
 

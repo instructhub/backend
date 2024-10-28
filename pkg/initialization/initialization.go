@@ -13,6 +13,7 @@ import (
 // Init all need when server start
 func Init() {
 	database.InitMongoDB()
+	database.SetupTTLIndex()
 	encryption.InitSnowflake()
 	utils.InitVariables()
 	rand.Seed(uint64(time.Now().UnixNano()))
