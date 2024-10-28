@@ -22,10 +22,10 @@ func PrintAppBanner() {
 InstructHub API
 Version: %s
 Gin Version: %s
-IP: http://127.0.0.1:%s
+Domain: %s
 
 Mongodb: Successfully connected
-`, os.Getenv("VERSION"), gin.Version, os.Getenv("PORT"))
+`, os.Getenv("VERSION"), gin.Version, os.Getenv("BASE_URL"))
 
 	// Print the information box after server starts
 	fmt.Println(infoBoxStyle.Render(info))

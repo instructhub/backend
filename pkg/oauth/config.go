@@ -1,9 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 
+	"github.com/instructhub/backend/pkg/utils"
 	"github.com/joho/godotenv"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/providers/github"
@@ -23,7 +25,7 @@ func OAuthInit() {
 		google.New(
 			os.Getenv("GOOGLE_CLIENT_ID"),
 			os.Getenv("GOOGLE_CLIENT_SECRET"),
-			"http://localhost:8080/auth/oauth/google/callback",
+			fmt.Sprintf("%s/auth/oauth/google/callback", utils.BaseURL),
 			"email",
 			"profile",
 		),
@@ -31,13 +33,13 @@ func OAuthInit() {
 		github.New(
 			os.Getenv("GITHUB_CLIENT_ID"),
 			os.Getenv("GITHUB_CLIENT_SECRET"),
-			"http://localhost:8080/auth/oauth/github/callback",
+			fmt.Sprintf("%s/auth/oauth/github/callback", utils.BaseURL),
 		),
 
 		gitlab.New(
 			os.Getenv("GITLAB_CLIENT_ID"),
 			os.Getenv("GITLAB_CLIENT_SECRET"),
-			"http://localhost:8080/auth/oauth/gitlab/callback",
+			fmt.Sprintf("%s/auth/oauth/gitlab/callback", utils.BaseURL),
 		),
 	)
 }

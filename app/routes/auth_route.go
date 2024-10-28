@@ -7,7 +7,7 @@ import (
 	testing "github.com/instructhub/backend/test"
 )
 
-func AuthRoute(r *gin.Engine) {
+func AuthRoute(r *gin.RouterGroup) {
 	test := r.Group("/test")
 	test.Use(middleware.IsAuthorized())
 	test.GET("/authorize", testing.Handler)
