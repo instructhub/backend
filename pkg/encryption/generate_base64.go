@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 )
 
+// Generate 32 long random base64 string
 func GenerateRandomBase64String() (string, error) {
 	randomBytes := make([]byte, 32)
 	_, err := rand.Read(randomBytes)

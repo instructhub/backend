@@ -27,6 +27,7 @@ var (
     ErrIncompatibleVersion = errors.New("incompatible version of argon2")
 )
 
+// Hash passsword with argon2i
 func HashPassword(password string) (string, error) {
 	start := time.Now() // Start timing
 
@@ -60,6 +61,7 @@ func HashPassword(password string) (string, error) {
 	return encodedHash, nil
 }
 
+// Check if the password is match the hashed password
 func ComparePasswordAndHash(password, encodedHash string) (match bool, err error) {
 	// Extract the parameters, salt and derived key from the encoded password
 	// hash.
@@ -79,6 +81,7 @@ func ComparePasswordAndHash(password, encodedHash string) (match bool, err error
 	return false, nil
 }
 
+// decode hash to get parms and salt
 func decodeHash(encodedHash string) (p *params, salt, hash []byte, err error) {
 	vals := strings.Split(encodedHash, "$")
 	if len(vals) != 6 {

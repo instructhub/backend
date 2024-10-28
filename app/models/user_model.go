@@ -2,6 +2,7 @@ package models
 
 import "time"
 
+// Users data type
 type User struct {
 	ID        uint64     `json:"id" bson:"id" binding:"required"`
 	Avatar    string     `json:"avatar,omitempty" bson:"avatar,omitempty"`
@@ -13,6 +14,7 @@ type User struct {
 	UpdatedAt time.Time  `json:"updated_at" bson:"updated_at" binding:"required"`
 }
 
+// Oauth privder type
 type Provider struct {
 	Provider string `json:"provider,omitempty" bson:"provider,omitempty"` // "google", "facebook", etc.
 	OAuthID  string `json:"oauth_id,omitempty" bson:"oauth_id,omitempty"` // Unique OAuth user ID

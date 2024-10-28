@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Make the logger better looks
 func CustomLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// start time

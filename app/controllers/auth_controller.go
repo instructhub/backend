@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// For user using email signup
 func Signup(c *gin.Context) {
 	type SignupRequest struct {
 		Username string `json:"username" binding:"required"`
@@ -86,6 +87,8 @@ func Signup(c *gin.Context) {
 	utils.SimpleResponse(c, 200, "Signup successful", nil)
 }
 
+
+// For login with email
 func Login(c *gin.Context) {
 	type LoginRequest struct {
 		Username string `json:"username,omitempty"`
@@ -140,6 +143,7 @@ func Login(c *gin.Context) {
 	utils.SimpleResponse(c, 200, "Login successful", nil)
 }
 
+// Call Oauth login with google github etc
 func OAuthHandler(c *gin.Context, cprovider string) {
 	q := c.Request.URL.Query()
 	q.Add("provider", cprovider)
@@ -147,6 +151,7 @@ func OAuthHandler(c *gin.Context, cprovider string) {
 	gothic.BeginAuthHandler(c.Writer, c.Request)
 }
 
+// Oauth call back for google github etc
 func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	q := c.Request.URL.Query()
 	q.Add("provider", cprovider)
@@ -164,7 +169,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
 		return
 	}
-
+	
 	if err == nil {
 		for i, p := range user.Providers {
 			if p.Provider == request.Provider {

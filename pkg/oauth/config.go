@@ -11,6 +11,7 @@ import (
 	"github.com/markbates/goth/providers/google"
 )
 
+// Init oauth for goth
 func OAuthInit() {
 	err := godotenv.Load("template.env")
 	if err != nil {

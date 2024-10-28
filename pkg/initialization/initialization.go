@@ -10,6 +10,7 @@ import (
 	"golang.org/x/exp/rand"
 )
 
+// Init all need when server start
 func Init() {
 	database.InitMongoDB()
 	encryption.InitSnowflake()

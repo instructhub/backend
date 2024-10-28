@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// For print app banner when server start
 func PrintAppBanner() {
 	// Define styles for the information box
 	infoBoxStyle := lipgloss.NewStyle().

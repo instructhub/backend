@@ -7,6 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// Generate new jwt token with credentials
 func GenerateNewJwtToken(id uint64, credentials []string, expiresAt time.Time) (string, error) {
 	// Set secret key from .env file.
 	secret := os.Getenv("JWT_SECRET_KEY")

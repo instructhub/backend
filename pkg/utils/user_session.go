@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// Generate new user access_token and refresh_token
 func GenerateUserSession(c *gin.Context, userID uint64) error {
 	var err error
 	secretKey, err := encryption.RandStringRunes(256)

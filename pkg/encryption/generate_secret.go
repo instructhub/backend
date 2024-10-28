@@ -7,6 +7,7 @@ import (
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=[]{}|;:,.<>?")
 
+// Generate random string this can provide 88^n possible
 func RandStringRunes(n int) (string, error) {
 	b := make([]rune, n)
 	for i := range b {
