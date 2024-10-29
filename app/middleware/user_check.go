@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/instructhub/backend/app/queues"
+	"github.com/instructhub/backend/pkg/utils"
 )
 
 func IsAuthorized() gin.HandlerFunc {
@@ -14,9 +15,7 @@ func IsAuthorized() gin.HandlerFunc {
 		cookie, err := c.Request.Cookie("access_token")
 
 		if err != nil || cookie.Value == "" {
-			c.JSON(403, gin.H{
-				"msg": "Authorization token is empty.",
-			})
+			utils.SimpleResponse(c, 403, "Authorization token is empty.", nil)
 			c.Abort()
 			return
 		}
@@ -33,57 +32,45 @@ func IsAuthorized() gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid || parseError {
-			c.JSON(403, gin.H{
-				"msg": "Unauthorized",
-			})
+			utils.SimpleResponse(c, 403, "Unauthorized", nil)
 			c.Abort()
 			return
 		}
 
-		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			expiresAtFloat, ok := claims["expires"].(float64)
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			utils.SimpleResponse(c, 403, "Unauthorized", nil)
+			c.Abort()
+			return
+		}
+		expiresAtFloat, ok := claims["expires"].(float64)
 
-			if !ok {
-				c.JSON(403, gin.H{
-					"msg": "Invalid datatype",
-				})
-				c.Abort()
-				return
-			}
+		if !ok {
+			utils.SimpleResponse(c, 403, "Invalid datatype", nil)
+			c.Abort()
+			return
+		}
 
-			expiresAt := int64(expiresAtFloat)
+		expiresAt := int64(expiresAtFloat)
 
-			if time.Now().Unix() >= expiresAt {
-				c.JSON(403, gin.H{
-					"msg": "Token expired",
-				})
-				c.Abort()
-				return
-			}
+		if time.Now().Unix() >= expiresAt {
+			utils.SimpleResponse(c, 403, "Token expired", nil)
+			c.Abort()
+			return
+		}
 
-			userIDFloat, ok := claims["sub"].(float64)
+		userIDFloat, ok := claims["sub"].(float64)
 
-			if !ok {
-				c.JSON(403, gin.H{
-					"msg": "Invalid datatype",
-				})
-				c.Abort()
-				return
-			}
+		if !ok {
+			utils.SimpleResponse(c, 403, "Invalid datatype", nil)
+			c.Abort()
+			return
+		}
 
-			userID := uint64(userIDFloat)
+		userID := uint64(userIDFloat)
 
-			if _, err := queues.GetUserQueueByID(userID); err != nil {
-				c.JSON(403, gin.H{
-					"msg": "UserID Error",
-				})
-				c.Abort()
-				return
-			}
-		} else {
-			c.JSON(403, gin.H{
-				"msg": "Unauthorized",
-			})
+		if _, err := queues.GetUserQueueByID(userID); err != nil {
+			utils.SimpleResponse(c, 403, "UserID error", nil)
 			c.Abort()
 			return
 		}
