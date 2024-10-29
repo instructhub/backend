@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -62,8 +63,9 @@ func IsAuthorized() gin.HandlerFunc {
 			}
 
 			userIDFloat, ok := claims["sub"].(float64)
+			contextID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 
-			if !ok {
+			if !ok || err != nil {
 				c.JSON(403, gin.H{
 					"msg": "Invalid datatype",
 				})
@@ -73,7 +75,7 @@ func IsAuthorized() gin.HandlerFunc {
 
 			userID := uint64(userIDFloat)
 
-			if _, err := queues.GetUserQueueByID(userID); err != nil {
+			if _, err := queues.GetUserQueueByID(userID); err != nil || contextID != userID {
 				c.JSON(403, gin.H{
 					"msg": "UserID Error",
 				})

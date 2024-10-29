@@ -4,13 +4,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/instructhub/backend/app/controllers"
 	"github.com/instructhub/backend/app/middleware"
-	testing "github.com/instructhub/backend/test"
 )
 
 func AuthRoute(r *gin.RouterGroup) {
-	test := r.Group("/test")
-	test.Use(middleware.IsAuthorized())
-	test.GET("/authorize", testing.Handler)
+	user := r.Group("/user")
+	user.Use(middleware.IsAuthorized())
+
+	user.GET("/allprofile/:id", controllers.GetProfile) // Admin use only
 
 	auth := r.Group("/auth")
 
