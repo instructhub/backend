@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/instructhub/backend/app/queues"
 )
 
 func IsAuthorized() gin.HandlerFunc {
@@ -40,10 +41,41 @@ func IsAuthorized() gin.HandlerFunc {
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			expiresAt := int64(claims["expires"].(float64))
+			expiresAtFloat, ok := claims["expires"].(float64)
+
+			if !ok {
+				c.JSON(403, gin.H{
+					"msg": "Invalid datatype",
+				})
+				c.Abort()
+				return
+			}
+
+			expiresAt := int64(expiresAtFloat)
+
 			if time.Now().Unix() >= expiresAt {
 				c.JSON(403, gin.H{
 					"msg": "Token expired",
+				})
+				c.Abort()
+				return
+			}
+
+			userIDFloat, ok := claims["sub"].(float64)
+
+			if !ok {
+				c.JSON(403, gin.H{
+					"msg": "Invalid datatype",
+				})
+				c.Abort()
+				return
+			}
+
+			userID := uint64(userIDFloat)
+
+			if _, err := queues.GetUserQueueByID(userID); err != nil {
+				c.JSON(403, gin.H{
+					"msg": "UserID Error",
 				})
 				c.Abort()
 				return

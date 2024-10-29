@@ -231,7 +231,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	utils.SimpleResponse(c, 200, "Signup successful", nil)
 }
 
-func RefreshAcctssToken(c *gin.Context) {
+func RefreshAccessToken(c *gin.Context) {
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil {
 		utils.SimpleResponse(c, 403, "Invide refresh token", nil)

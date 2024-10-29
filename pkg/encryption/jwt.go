@@ -18,8 +18,7 @@ func GenerateNewJwtToken(id uint64, credentials []string, expiresAt time.Time) (
 	claims := jwt.MapClaims{}
 
 	// Set public claims:
-	claims["id"] = id
-	claims["sub"] = time.Now().Unix()
+	claims["sub"] = id
 	claims["expires"] = expiresAt.Unix()
 
 	// Set private token credentials:

@@ -35,7 +35,7 @@ func CreateUserQueue(user models.User) error {
 	return err
 }
 
-// Update user tird-part oauth provider data
+// Update user third-part oauth provider data
 func AppendUserProviderQueue(id uint64, user models.User) error {
 	filter := bson.M{"id": id}
 
