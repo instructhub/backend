@@ -19,6 +19,7 @@ func GenerateUserSession(c *gin.Context, userID uint64) error {
 		return err
 	}
 	session := models.Session{
+		SessionID: encryption.GenerateID(),
 		SecretKey: secretKey,
 		UserID:    userID,
 		ExpiresAt: time.Now().Add(time.Hour * 24 * time.Duration(CookieRefreshTokenExpires)),

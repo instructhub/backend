@@ -4,6 +4,7 @@ import "time"
 
 // Session type
 type Session struct {
+	SessionID uint64 `json:"session_id" bson:"session_id"`
 	SecretKey string `json:"secret_key" bson:"secret_key"`
 	UserAgent string `json:"user_agent" bson:"user_agent"`
 	UserID    uint64 `json:"user_id" bson:"user_id"`

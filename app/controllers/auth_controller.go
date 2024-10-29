@@ -261,4 +261,28 @@ func RefreshAccessToken(c *gin.Context) {
 	}
 
 	c.SetCookie("access_token", accessToken, utils.CookieAccessTokenExpires * 60, "/", "", false, true)
+	utils.SimpleResponse(c, 200, "Successful rotate access token", nil)
+}
+
+func LogOut(c *gin.Context) {
+    refreshToken, err := c.Cookie("refresh_token")
+    if err != nil {
+        utils.SimpleResponse(c, 403, "Invalid refresh token", nil)
+        return
+    }
+
+    result := queues.DeleteSessionQueue(refreshToken)
+    if result.Err() == mongo.ErrNoDocuments {
+        utils.SimpleResponse(c, 403, "Invalid refresh token", nil)
+        return
+    }
+    if result.Err() != nil {
+        utils.SimpleResponse(c, 500, "Internal error", result.Err().Error())
+        return
+    }
+
+    c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+    c.SetCookie("access_token", "", -1, "/", "", false, true)
+
+    utils.SimpleResponse(c, 200, "Logged out successfully", nil)
 }
