@@ -3,15 +3,9 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/instructhub/backend/app/controllers"
-	"github.com/instructhub/backend/app/middleware"
 )
 
 func AuthRoute(r *gin.RouterGroup) {
-	user := r.Group("/user")
-	user.Use(middleware.IsAuthorized())
-
-	user.GET("/allprofile/:id", controllers.GetProfile) // Admin use only
-
 	auth := r.Group("/auth")
 
 	auth.POST("/signup", controllers.Signup)
