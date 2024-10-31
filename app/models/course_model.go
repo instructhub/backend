@@ -12,7 +12,7 @@ type Course struct {
 }
 
 type CourseFile struct {
-	Content  string `json:"content" binding:"required,base64,max=1000000,min=10e"`
+	Content  string `json:"content" binding:"required,base64,max=1000000,min=10"`
 	Stage    string `json:"stage" binding:"required,max=10,min=3"`
 	Message  string `json:"message" binding:"max=50"`
 }
