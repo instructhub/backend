@@ -40,9 +40,6 @@ func SetupTTLIndex() error {
 		if _, err := collection.Indexes().CreateOne(ctx, indexModel); err != nil {
 			return fmt.Errorf("error create ttl index: %v", err)
 		}
-		fmt.Println("Successful create ttl index.")
-	} else {
-		fmt.Println("ttl index already exist.")
 	}
 
 	return nil

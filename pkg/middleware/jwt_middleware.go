@@ -2,12 +2,10 @@ package middleware
 
 import (
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/instructhub/backend/app/queues"
 	"github.com/instructhub/backend/pkg/utils"
 )
 
@@ -61,22 +59,14 @@ func IsAuthorized() gin.HandlerFunc {
 		}
 
 		userIDFloat, ok := claims["sub"].(float64)
-		contextID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-
-		if !ok || err != nil{
-			utils.SimpleResponse(c, 403, "Invalid datatype", nil)
-			c.Abort()
-			return
-		}
-
-		userID := uint64(userIDFloat)
-
-		if _, err := queues.GetUserQueueByID(userID); err != nil || contextID != userID {
+		if !ok {
 			utils.SimpleResponse(c, 403, "UserID error", nil)
 			c.Abort()
 			return
 		}
+		userID := uint64(userIDFloat)
 
+		c.Set("userID", userID)
 		c.Next()
 	}
 }

@@ -1,4 +1,4 @@
-package queues
+package queries
 
 import (
 	"context"

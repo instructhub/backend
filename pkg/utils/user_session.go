@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/instructhub/backend/app/models"
-	"github.com/instructhub/backend/app/queues"
+	"github.com/instructhub/backend/app/queries"
 	"github.com/instructhub/backend/pkg/encryption"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -27,7 +27,7 @@ func GenerateUserSession(c *gin.Context, userID uint64) error {
 	}
 
 	for {
-		_, err = queues.GetSessionQueue(session.SecretKey)
+		_, err = queries.GetSessionQueue(session.SecretKey)
 		if err == mongo.ErrNoDocuments {
 			break
 		} else if err != nil {
@@ -36,7 +36,7 @@ func GenerateUserSession(c *gin.Context, userID uint64) error {
 		}
 	}
 
-	err = queues.CreateSessionQueue(session)
+	err = queries.CreateSessionQueue(session)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func GenerateUserSession(c *gin.Context, userID uint64) error {
 		return err
 	}
 
-	c.SetCookie("refresh_token", session.SecretKey, CookieRefreshTokenExpires * 24 * 60 * 60, "/auth/refresh/", "", false, true)
+	c.SetCookie("refresh_token", session.SecretKey, CookieRefreshTokenExpires * 24 * 60 * 60, BaseURL + "/auth/refresh/", "", false, true)
 	c.SetCookie("access_token", accessToken, CookieAccessTokenExpires * 60, "/", "", false, true)
 
 	return nil

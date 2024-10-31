@@ -24,7 +24,6 @@ Version: %s
 Gin Version: %s
 Domain: %s
 
-Mongodb: Successfully connected
 `, os.Getenv("VERSION"), gin.Version, os.Getenv("BASE_URL"))
 
 	// Print the information box after server starts

@@ -1,7 +1,6 @@
 package gt
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -16,6 +15,4 @@ func InitGiteaClient() {
 		log.Fatalln("error connect to gitea")
 	}
     GiteaClient = client
-
-	fmt.Println("Succesful connect to gitea")
 }

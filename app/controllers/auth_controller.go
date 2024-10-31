@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/instructhub/backend/app/models"
-	"github.com/instructhub/backend/app/queues"
+	"github.com/instructhub/backend/app/queries"
 	"github.com/instructhub/backend/pkg/encryption"
 	"github.com/instructhub/backend/pkg/utils"
 	"github.com/markbates/goth/gothic"
@@ -14,15 +14,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type EmailAuthRequest struct {
+	Username string `json:"username" binding:"required,max=30,min=3,alphanum"`
+	Email    string `json:"email" binding:"required,email,max=320"`
+	Password string `json:"password" binding:"required,max=128,min=8"`
+}
+
 // For user using email signup
 func Signup(c *gin.Context) {
-	type SignupRequest struct {
-		Username string `json:"username" binding:"required"`
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required"`
-	}
-
-	var request SignupRequest
+	var request EmailAuthRequest
 
 	// Validate request body
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -30,13 +30,8 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	if err := utils.Validator().Struct(request); err != nil {
-		utils.SimpleResponse(c, 400, "Invalid request", err.Error())
-		return
-	}
-
 	// Check if email already been used
-	_, err := queues.GetUserQueueByEmail(request.Email)
+	_, err := queries.GetUserQueueByEmail(request.Email)
 	if err == nil {
 		utils.SimpleResponse(c, 400, "Email already been used", nil)
 		return
@@ -46,7 +41,7 @@ func Signup(c *gin.Context) {
 	}
 
 	// Check if username already been used
-	_, err = queues.GetUserQueueByUsername(request.Username)
+	_, err = queries.GetUserQueueByUsername(request.Username)
 	if err == nil {
 		utils.SimpleResponse(c, 400, "Username already been used", nil)
 		return
@@ -72,7 +67,7 @@ func Signup(c *gin.Context) {
 	}
 	user.Password = hashedPassword
 
-	err = queues.CreateUserQueue(user)
+	err = queries.CreateUserQueue(user)
 	if err != nil {
 		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
 		return
@@ -89,21 +84,10 @@ func Signup(c *gin.Context) {
 
 // For login with email
 func Login(c *gin.Context) {
-	type LoginRequest struct {
-		Username string `json:"username,omitempty"`
-		Email    string `json:"email,omitempty" binding:"email"`
-		Password string `json:"password" binding:"required"`
-	}
-
-	var request LoginRequest
+	var request EmailAuthRequest
 
 	// Validate request body
 	if err := c.ShouldBindJSON(&request); err != nil {
-		utils.SimpleResponse(c, 400, "Invalid request", err.Error())
-		return
-	}
-
-	if err := utils.Validator().Struct(request); err != nil {
 		utils.SimpleResponse(c, 400, "Invalid request", err.Error())
 		return
 	}
@@ -117,9 +101,9 @@ func Login(c *gin.Context) {
 	var err error
 
 	if request.Username != "" {
-		user, err = queues.GetUserQueueByUsername(request.Username)
+		user, err = queries.GetUserQueueByUsername(request.Username)
 	} else {
-		user, err = queues.GetUserQueueByEmail(request.Email)
+		user, err = queries.GetUserQueueByEmail(request.Email)
 	}
 
 	if err != nil {
@@ -162,7 +146,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	}
 
 	var user models.User
-	user, err = queues.GetUserQueueByEmail(request.Email)
+	user, err = queries.GetUserQueueByEmail(request.Email)
 
 	if err != nil && err != mongo.ErrNoDocuments {
 		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
@@ -191,7 +175,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		user.Providers = append(user.Providers, models.Provider{Provider: request.Provider, OAuthID: request.UserID})
 		user.UpdatedAt = time.Now()
 
-		queues.AppendUserProviderQueue(uint64(user.ID), user)
+		queries.AppendUserProviderQueue(uint64(user.ID), user)
 
 		err = utils.GenerateUserSession(c, user.ID)
 		if err != nil {
@@ -213,7 +197,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		UpdatedAt: time.Now(),
 	}
 
-	err = queues.CreateUserQueue(user)
+	err = queries.CreateUserQueue(user)
 	if err != nil {
 		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
 		return
@@ -238,7 +222,7 @@ func RefreshAccessToken(c *gin.Context) {
 
 	userID := uint64(utils.Atoi(c.Param("userID")))
 
-	session, err := queues.GetSessionQueue(refreshToken)
+	session, err := queries.GetSessionQueue(refreshToken)
 	if err == mongo.ErrNoDocuments {
 		utils.SimpleResponse(c, 403, "Invide refresh token", nil)
 		return
@@ -270,7 +254,7 @@ func LogOut(c *gin.Context) {
 		return
 	}
 
-	result := queues.DeleteSessionQueue(refreshToken)
+	result := queries.DeleteSessionQueue(refreshToken)
 	if result.Err() == mongo.ErrNoDocuments {
 		utils.SimpleResponse(c, 403, "Invalid refresh token", nil)
 		return
