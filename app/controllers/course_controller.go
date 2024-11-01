@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -114,13 +115,6 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	// Check if the uploaded file is an image
-	contentType := file.Header.Get("Content-Type")
-	if !utils.IsValidImageType(contentType) {
-		utils.SimpleResponse(c, 400, "Uploaded file is not a valid image", nil)
-		return
-	}
-
 	courseID, err := strconv.ParseUint(c.Param("courseID"), 10, 64)
 	if err != nil {
 		utils.SimpleResponse(c, 400, "Missing course ID", nil)
@@ -150,13 +144,31 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	// File is within 10 MB limit, upload directly
+	// Open the uploaded file
 	srcFile, err := file.Open()
 	if err != nil {
-		utils.SimpleResponse(c, 400, "Error opening image", nil)
+		utils.SimpleResponse(c, 500, "Error opening image", nil)
 		return
 	}
 	defer srcFile.Close()
+
+	// Read the first few bytes of the file for magic number detection
+	magic := make([]byte, 8) // Adjust the size based on your needs
+	_, err = srcFile.Read(magic)
+	if err != nil && err != io.EOF {
+		utils.SimpleResponse(c, 500, "Error reading image", nil)
+		return
+	}
+
+	isImage, contentType, err := utils.IsValidImageType(magic)
+	if err != nil {
+		utils.SimpleResponse(c, 400, err.Error(), nil)
+		return
+	}
+
+	if !isImage {
+		utils.SimpleResponse(c, 400, "This is not a image type", nil)
+	}
 
 	// Read original file into bytes.Buffer
 	if _, err := src.ReadFrom(srcFile); err != nil {

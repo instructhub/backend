@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 )
@@ -20,11 +21,22 @@ func InitVariables() {
 	BaseURL = fmt.Sprintf("%s/api/v%s", os.Getenv("BASE_URL"), os.Getenv("VERSION"))
 }
 
-func IsValidImageType(contentType string) bool {
-	switch contentType {
-	case "image/jpeg", "image/png", "image/gif":
-		return true
-	default:
-		return false
+// Magic bytes for different image formats
+var magicBytes = map[string][]byte{
+	"image/jpeg": {0xFF, 0xD8},
+	"image/png":  {0x89, 0x50, 0x4E, 0x47},
+	"image/gif":  {0x47, 0x49, 0x46},
+}
+
+// Check if the uploaded file is an image using Magic Bytes
+func IsValidImageType(magic []byte) (bool, string, error) {
+	// Compare the bytes with known magic bytes
+	for mimeType, magicPattern := range magicBytes {
+		if bytes.HasPrefix(magic, magicPattern) {
+			return true, mimeType, nil // 返回 true 表示有效圖片
+		}
 	}
+
+	// 如果沒有匹配的類型，返回 false 和錯誤信息
+	return false, "", fmt.Errorf("uploaded file is not a valid image")
 }
