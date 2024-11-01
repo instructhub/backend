@@ -29,7 +29,7 @@ func main() {
 	routes.AuthRoute(r)
 	routes.UserRoute(r)
 	routes.CourseRoute(r)
-	
+
 	if err := root.Run(); err != nil {
 		fmt.Printf("Server failed to start: %v\n", err)
 	}
