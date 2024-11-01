@@ -135,43 +135,46 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	// Set max file size to 10 MB
+	// Set max file size to 5 MB
 	const maxFileSize = 10 * 1024 * 1024
-	var src bytes.Buffer
 
 	if file.Size > maxFileSize {
-		utils.SimpleResponse(c, 400, "Image too large(>10MB)", nil)
+		utils.SimpleResponse(c, 400, "Image too large ( > 10MB)", nil)
 		return
 	}
 
 	// Open the uploaded file
 	srcFile, err := file.Open()
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Error opening image", nil)
+		utils.SimpleResponse(c, 400, "Error opening image", nil)
 		return
 	}
 	defer srcFile.Close()
 
 	// Read the first few bytes of the file for magic number detection
-	magic := make([]byte, 8) // Adjust the size based on your needs
+	magic := make([]byte, 8) // Adjust size as needed
 	_, err = srcFile.Read(magic)
 	if err != nil && err != io.EOF {
 		utils.SimpleResponse(c, 500, "Error reading image", nil)
 		return
 	}
 
+	// Check if it's a valid image type
 	isImage, contentType, err := utils.IsValidImageType(magic)
+	if err != nil  || !isImage {
+		utils.SimpleResponse(c, 400, "Uploaded file is not a valid image", nil)
+		return
+	}
+
+	// Reset the file pointer to the beginning to ensure the full file can be read
+	_, err = srcFile.Seek(0, io.SeekStart)
 	if err != nil {
-		utils.SimpleResponse(c, 400, err.Error(), nil)
+		utils.SimpleResponse(c, 500, "Error resetting file pointer", nil)
 		return
 	}
 
-	if !isImage {
-		utils.SimpleResponse(c, 400, "This is not a image type", nil)
-		return
-	}
-
-	// Read original file into bytes.Buffer
+	// Read the entire file into a bytes.Buffer
+	var src bytes.Buffer
 	if _, err := src.ReadFrom(srcFile); err != nil {
 		utils.SimpleResponse(c, 500, "Error reading image", nil)
 		return

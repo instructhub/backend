@@ -33,10 +33,9 @@ func IsValidImageType(magic []byte) (bool, string, error) {
 	// Compare the bytes with known magic bytes
 	for mimeType, magicPattern := range magicBytes {
 		if bytes.HasPrefix(magic, magicPattern) {
-			return true, mimeType, nil // 返回 true 表示有效圖片
+			return true, mimeType, nil
 		}
 	}
 
-	// 如果沒有匹配的類型，返回 false 和錯誤信息
 	return false, "", fmt.Errorf("uploaded file is not a valid image")
 }
