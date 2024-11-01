@@ -100,3 +100,35 @@ func CreateNewCourse(c *gin.Context) {
 
 	utils.SimpleResponse(c, 200, "Successful create new course", nil)
 }
+
+// func UploadImage(c *gin.Context) {
+// 	file, err := c.FormFile("image")
+// 	if err != nil {
+// 		utils.SimpleResponse(c, 400, "Image required", nil)
+// 		return
+// 	}
+
+// 	// Open the uploaded file
+// 	src, err := file.Open()
+// 	if err != nil {
+// 		utils.SimpleResponse(c, 400, "Error open image", nil)
+// 		return
+// 	}
+// 	defer src.Close()
+
+// 	// Upload the file to S3
+// 	_, err = s3.Client.PutObject(context.TODO(), &s3.PutObjectInput{
+// 		Bucket: ,
+// 		Key:    &file.Filename,
+// 		Body:   src,
+// 	})
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to upload the file"})
+// 		return
+// 	}
+
+// 	// Construct the file URL
+// 	fileURL := fmt.Sprintf("%s/%s/%s", os.Getenv("S3_ENDPOINT"), ctrl.Bucket, file.Filename)
+
+// 	c.JSON(http.StatusOK, gin.H{"message": "File uploaded successfully", "url": fileURL})
+// }

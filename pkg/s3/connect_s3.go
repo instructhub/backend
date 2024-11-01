@@ -17,6 +17,9 @@ import (
 
 var Client *s3.Client
 
+var CourseImageBuckerName string = "course-image"
+var AvatarBucketsName string = "avatar"
+
 func ConnectS3() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(os.Getenv("S3_ACCESS_KEY_ID"), os.Getenv("S3_SECRET_KEY"), "")),
@@ -51,26 +54,28 @@ func ConnectS3() {
 	})
 
 	// Check if the bucket exists
-	bucketName := os.Getenv("S3_BUCKET_NAME") // Get your desired bucket name
-	_, err = Client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
-		Bucket: &bucketName,
-	})
-	if err != nil {
-		// Check if the error is due to a non-existent bucket
-		var notFoundErr *types.NotFound
-		if errors.As(err, &notFoundErr) {
-			// If the bucket does not exist, create it
-			_, createErr := Client.CreateBucket(context.TODO(), &s3.CreateBucketInput{
-				Bucket: &bucketName,
-			})
-			if createErr != nil {
-				log.Fatalf("Failed to create bucket %s: %v", bucketName, createErr)
+	bucketsName := []string{"course-image", "avatar"}
+	for _, bucketName := range bucketsName {
+		_, err = Client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
+			Bucket: &bucketName,
+		})
+		if err != nil {
+			// Check if the error is due to a non-existent bucket
+			var notFoundErr *types.NotFound
+			if errors.As(err, &notFoundErr) {
+				// If the bucket does not exist, create it
+				_, createErr := Client.CreateBucket(context.TODO(), &s3.CreateBucketInput{
+					Bucket: &bucketName,
+				})
+				if createErr != nil {
+					log.Fatalf("Failed to create bucket %s: %v", bucketName, createErr)
+					return
+				}
+				log.Printf("Bucket %s created successfully.", bucketName)
+			} else {
+				log.Fatalf("Failed to check bucket %s: %v", bucketName, err)
 				return
 			}
-			log.Printf("Bucket %s created successfully.", bucketName)
-		} else {
-			log.Fatalf("Failed to check bucket %s: %v", bucketName, err)
-			return
 		}
 	}
 }
