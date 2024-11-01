@@ -168,6 +168,7 @@ func UploadImage(c *gin.Context) {
 
 	if !isImage {
 		utils.SimpleResponse(c, 400, "This is not a image type", nil)
+		return
 	}
 
 	// Read original file into bytes.Buffer
