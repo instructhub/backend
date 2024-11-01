@@ -108,7 +108,7 @@ func CreateNewCourse(c *gin.Context) {
 		return
 	}
 
-	utils.SimpleResponse(c, 200, "Successful create new course", nil)
+	utils.SimpleResponse(c, 201, "Successful create new course", nil)
 }
 
 
