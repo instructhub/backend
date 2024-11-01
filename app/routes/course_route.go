@@ -11,5 +11,5 @@ func CourseRoute(r *gin.RouterGroup) {
 	course.Use(middleware.IsAuthorized())
 
 	course.POST("/new", controllers.CreateNewCourse)
-	course.POST("/:id/upload")
+	course.POST("/:courseID/upload", controllers.UploadImage)
 }

@@ -11,6 +11,13 @@ type Course struct {
 	CreateAt               time.Time `json:"create_at" bson:"create_at"`
 }
 
+type CourseImage struct {
+	ImageLink string `json:"image_link" bson:"image_link"`
+	CourseID uint64 `json:"course_id" bson:"course_id"`
+	Craetor uint64 `json:"creator" bson:"creator"`
+	CreatedAt time.Time `json:"created_at" bson:"created_at"`
+}
+
 type CourseFile struct {
 	Content  string `json:"content" binding:"required,base64,max=1000000,min=10"`
 	Stage    string `json:"stage" binding:"required,max=10,min=3"`

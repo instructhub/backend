@@ -1,9 +1,10 @@
-package s3
+package store
 
 import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -54,7 +55,7 @@ func ConnectS3() {
 	})
 
 	// Check if the bucket exists
-	bucketsName := []string{"course-image", "avatar"}
+	bucketsName := []string{CourseImageBuckerName, AvatarBucketsName}
 	for _, bucketName := range bucketsName {
 		_, err = Client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
 			Bucket: &bucketName,
@@ -72,6 +73,29 @@ func ConnectS3() {
 					return
 				}
 				log.Printf("Bucket %s created successfully.", bucketName)
+
+				// Set the bucket policy to make it publicly readable
+				policy := fmt.Sprintf(`{
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Principal": "*",
+							"Action": "s3:GetObject",
+							"Resource": "arn:aws:s3:::%s/*"
+						}
+					]
+				}`, bucketName)
+
+				_, policyErr := Client.PutBucketPolicy(context.TODO(), &s3.PutBucketPolicyInput{
+					Bucket: &bucketName,
+					Policy: &policy,
+				})
+				if policyErr != nil {
+					log.Fatalf("Failed to set public read policy for bucket %s: %v", bucketName, policyErr)
+					return
+				}
+				log.Printf("Public read policy set for bucket %s.", bucketName)
 			} else {
 				log.Fatalf("Failed to check bucket %s: %v", bucketName, err)
 				return
