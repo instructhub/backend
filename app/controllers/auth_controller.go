@@ -163,7 +163,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 						return
 					}
 
-					utils.SimpleResponse(c, 200, "Login successful and added another provider", nil)
+					utils.SimpleResponse(c, 200, "Login successful", nil)
 					return
 				} else {
 					utils.SimpleResponse(c, 403, "OAuthID mismatched!", nil)
@@ -183,7 +183,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 			return
 		}
 
-		utils.SimpleResponse(c, 200, "Login successful", nil)
+		utils.SimpleResponse(c, 200, "Login successful and added another provider", nil)
 		return
 	}
 
