@@ -18,7 +18,7 @@ func main() {
 	root.SetTrustedProxies([]string{"127.0.0.1"})
 	root.StaticFile("/favicon.ico", "./static/favicon.ico")
 	root.Use(middleware.CustomLogger())
-
+	root.LoadHTMLGlob("template/*")
 	// Init all dependencies
 	initialization.Init()
 

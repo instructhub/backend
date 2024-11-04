@@ -55,6 +55,7 @@ func Signup(c *gin.Context) {
 		Username:  request.Username,
 		Email:     request.Email,
 		Password:  request.Password,
+		Verify: false,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -117,6 +118,10 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	if !user.Verify {
+		utils.SimpleResponse(c, 403, "Email not verify", nil)
+	}
+
 	err = utils.GenerateUserSession(c, user.ID)
 	if err != nil {
 		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
@@ -163,7 +168,10 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 						return
 					}
 
-					utils.SimpleResponse(c, 200, "Login successful", nil)
+					c.HTML(200, "auth_successful.html", gin.H{
+						"Title": "Login Successful",
+						"Message": "Welcome back! You've successfully logged in.",
+					})
 					return
 				} else {
 					utils.SimpleResponse(c, 403, "OAuthID mismatched!", nil)
@@ -183,7 +191,10 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 			return
 		}
 
-		utils.SimpleResponse(c, 200, "Login successful and added another provider", nil)
+		c.HTML(200, "auth_successful.html", gin.H{
+			"Title": "New login option added successfully!",
+			"Message": "Welcome back! You've successfully logged in.",
+		})
 		return
 	}
 
@@ -211,7 +222,10 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	}
 
 	// Respond with success
-	utils.SimpleResponse(c, 200, "Signup successful", nil)
+	c.HTML(200, "auth_successful.html", gin.H{
+		"Title": "You have successfully signed up!",
+		"Message": "Signup successful! We’re glad to have you with us.",
+	})
 }
 
 func RefreshAccessToken(c *gin.Context) {

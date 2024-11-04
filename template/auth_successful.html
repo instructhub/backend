@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Successful</title>
+  <style>
+    :root {
+      --mocha-bg: #1E1E2E;
+      --mocha-surface: #302D41;
+      --mocha-text: #D9E0EE;
+      --mocha-muted-text: #C6D0F5;
+      --mocha-green: #A6E3A1;
+      --mocha-green-hover: #89C0A5;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background-color: var(--mocha-bg);
+    }
+
+    .login-success-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      padding: 20px;
+    }
+
+    .success-card {
+      background-color: var(--mocha-surface);
+      color: var(--mocha-text);
+      width: 100%;
+      max-width: 400px;
+      border-radius: 12px;
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .icon-check {
+      color: var(--mocha-green);
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--mocha-text);
+      margin-bottom: 8px;
+    }
+
+    p {
+      font-size: 16px;
+      color: var(--mocha-muted-text);
+      margin-bottom: 30px;
+    }
+
+    .continue-btn {
+      background-color: var(--mocha-green);
+      color: var(--mocha-bg);
+      font-size: 16px;
+      font-weight: 600;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .continue-btn:hover {
+      background-color: var(--mocha-green-hover);
+    }
+  </style>
+</head>
+<body>
+  <div class="login-success-container">
+    <div class="success-card">
+      <div class="icon-check">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </div>
+      <h1>{{ .Title }}</h1>
+      <p>{{ .Message }}</p>
+    </div>
+  </div>
+</body>
+</html>

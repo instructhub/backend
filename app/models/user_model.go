@@ -10,6 +10,7 @@ type User struct {
 	Email     string     `json:"email" bson:"email" binding:"required,email"`  // Unique
 	Password  string     `json:"password,omitempty" bson:"password,omitempty"` // Hashed password, omit for OAuth users
 	Providers []Provider `json:"providers" bson:"providers"`
+	Verify    bool       `json:"verify" bson:"verify"`
 	CreatedAt time.Time  `json:"created_at" bson:"created_at" binding:"required"`
 	UpdatedAt time.Time  `json:"updated_at" bson:"updated_at" binding:"required"`
 }
