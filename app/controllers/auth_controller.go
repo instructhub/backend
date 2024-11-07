@@ -83,9 +83,15 @@ func Signup(c *gin.Context) {
 	utils.SimpleResponse(c, 200, "Signup successful", nil)
 }
 
+type EmailLoginRequest struct {
+	Username string `json:"username" binding:"max=30"`
+	Email    string `json:"email" binding:"email,max=320"`
+	Password string `json:"password" binding:"required,max=128,min=8"`
+}
+
 // For login with email
 func Login(c *gin.Context) {
-	var request EmailAuthRequest
+	var request EmailLoginRequest
 
 	// Validate request body
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -119,7 +125,13 @@ func Login(c *gin.Context) {
 	}
 
 	if !user.Verify {
-		utils.SimpleResponse(c, 403, "Email not verify", nil)
+		type notVerify struct{
+			Verify bool `json:"verify"`
+		}
+		utils.SimpleResponse(c, 403, "Email not verify", notVerify{
+			Verify: false,
+		})
+		return
 	}
 
 	err = utils.GenerateUserSession(c, user.ID)
