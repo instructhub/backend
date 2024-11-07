@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/instructhub/backend/app/models"
@@ -128,6 +129,8 @@ func Login(c *gin.Context) {
 		type notVerify struct{
 			Verify bool `json:"verify"`
 		}
+		userIDString := strconv.FormatInt(int64(user.ID), 10)
+		c.SetCookie("userID", userIDString, 15 * 60, "/", "", true, true)
 		utils.SimpleResponse(c, 403, "Email not verify", notVerify{
 			Verify: false,
 		})
