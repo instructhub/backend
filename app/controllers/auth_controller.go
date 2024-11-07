@@ -130,7 +130,7 @@ func Login(c *gin.Context) {
 			Verify bool `json:"verify"`
 		}
 		userIDString := strconv.FormatInt(int64(user.ID), 10)
-		c.SetCookie("userID", userIDString, 15 * 60, "/", "", true, true)
+		c.SetCookie("userID", userIDString, 15 * 60, "/", "", false, true)
 		utils.SimpleResponse(c, 403, "Email not verify", notVerify{
 			Verify: false,
 		})
