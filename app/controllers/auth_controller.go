@@ -203,7 +203,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		Avatar:    request.AvatarURL,
 		Username:  request.Name,
 		Email:     request.Email,
-		Providers: []models.Provider{{Provider: request.Provider, OAuthID: request.UserID}}, // IDK why it's double braces
+		Providers: []models.Provider{{Provider: request.Provider, OAuthID: request.UserID}},
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -282,4 +282,21 @@ func LogOut(c *gin.Context) {
 	c.SetCookie("access_token", "", -1, "/", "", false, true)
 
 	utils.SimpleResponse(c, 200, "Logged out successfully", nil)
+}
+
+func CheckEmailVerify(c *gin.Context) {
+	type resp struct {
+		Verify bool `json:"verify"`
+	}
+
+	userID := uint64(utils.Atoi(c.Param("userID")))
+
+	user, err := queries.GetUserQueueByID(userID)
+	if err != nil {
+		utils.SimpleResponse(c, 404, "This user not exist", nil)
+	}
+
+	utils.SimpleResponse(c, 200, "Successful get user verify status", resp{
+		Verify: user.Verify,
+	})
 }
