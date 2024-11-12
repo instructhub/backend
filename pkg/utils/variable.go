@@ -14,7 +14,7 @@ var (
 )
 
 // Init some usefil variables
-func InitVariables() {
+func init() {
 	GiteaORGName = os.Getenv("GITEA_ORG_NAME")
 	CookieRefreshTokenExpires = Atoi(os.Getenv("COOKIE_REFRESH_TOKEN_EXPIRES"))
 	CookieAccessTokenExpires = Atoi(os.Getenv("COOKIE_ACCESS_TOKEN_EXPIRES"))

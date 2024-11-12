@@ -35,7 +35,7 @@ var usernameValidator validator.Func = func(fl validator.FieldLevel) bool {
 	return matched
 }
 
-func InitValidator() {
+func init() {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("lang", langLocalValidator)
 		v.RegisterValidation("username", usernameValidator)

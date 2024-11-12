@@ -16,7 +16,7 @@ import (
 var MongoClient *mongo.Client
 
 // InitMongoDB Init MongoDB connection
-func InitMongoDB() {
+func init() {
 	err := godotenv.Load("template.env")
 	if err != nil {
 		log.Fatalf("Error loading .env file")
@@ -42,6 +42,9 @@ func InitMongoDB() {
 	}
 
 	MongoClient = client
+
+	// Setup ttl index to auto delete
+	setupTTLIndex()
 }
 
 // GetCollection Get MongoDB collection

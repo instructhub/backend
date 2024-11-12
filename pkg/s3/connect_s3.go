@@ -21,7 +21,7 @@ var Client *s3.Client
 var CourseImageBuckerName string = "course-image"
 var AvatarBucketsName string = "avatar"
 
-func ConnectS3() {
+func init() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(os.Getenv("S3_ACCESS_KEY_ID"), os.Getenv("S3_SECRET_KEY"), "")),
 		config.WithRegion("auto"),

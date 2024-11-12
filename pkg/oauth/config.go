@@ -14,7 +14,7 @@ import (
 )
 
 // Init oauth for goth
-func OAuthInit() {
+func init() {
 	err := godotenv.Load("template.env")
 	if err != nil {
 		log.Fatalf("Error loading .env file")

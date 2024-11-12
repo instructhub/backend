@@ -10,7 +10,7 @@ import (
 )
 
 // Init snowflake to set MachineID and start time
-func InitSnowflake() {
+func init() {
 	machineID := os.Getenv("MACHINE_ID")
 	num, err := strconv.Atoi(machineID)
 

@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/instructhub/backend/app/routes"
-	"github.com/instructhub/backend/pkg/initialization"
 	"github.com/instructhub/backend/pkg/middleware"
+	_ "github.com/instructhub/backend/pkg/oauth"
 	"github.com/instructhub/backend/pkg/utils"
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -20,7 +20,6 @@ func main() {
 	root.Use(middleware.CustomLogger())
 	root.LoadHTMLGlob("template/*")
 	// Init all dependencies
-	initialization.Init()
 
 	r := root.Group("/api/v" + os.Getenv("VERSION"))
 
