@@ -23,7 +23,7 @@ func Init() {
 	rand.Seed(uint64(time.Now().UnixNano()))
 	config.OAuthInit()
 	gt.InitGiteaClient()
-	utils.InitVaildator()
+	utils.InitValidator()
 	store.ConnectS3()
 	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("#18FD7BFF")).Render("Successfully initialized all necessary services"))
 }

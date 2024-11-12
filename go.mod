@@ -1,6 +1,6 @@
 module github.com/instructhub/backend
 
-go 1.22.7
+go 1.22.0
 
 require (
 	code.gitea.io/sdk/gitea v0.19.0

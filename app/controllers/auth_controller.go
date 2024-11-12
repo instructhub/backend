@@ -16,7 +16,7 @@ import (
 )
 
 type EmailAuthRequest struct {
-	Username string `json:"username" binding:"required,max=30,min=3,alphanum"`
+	Username string `json:"username" binding:"required,max=30,min=3,username"`
 	Email    string `json:"email" binding:"required,email,max=320"`
 	Password string `json:"password" binding:"required,max=128,min=8"`
 }
@@ -75,13 +75,10 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	err = utils.GenerateUserSession(c, user.ID)
-	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
-		return
-	}
+	userIDString := strconv.FormatInt(int64(user.ID), 10)
+	c.SetCookie("userID", userIDString, 15 * 60, "/", "", false, false)
 
-	utils.SimpleResponse(c, 200, "Signup successful", nil)
+	utils.SimpleResponse(c, 200, "Signup successful please verify email", nil)
 }
 
 type EmailLoginRequest struct {
@@ -124,11 +121,11 @@ func Login(c *gin.Context) {
 		utils.SimpleResponse(c, 400, "Invalid password", nil)
 		return
 	}
-
+	
+	type notVerify struct{
+		Verify bool `json:"verify"`
+	}
 	if !user.Verify {
-		type notVerify struct{
-			Verify bool `json:"verify"`
-		}
 		userIDString := strconv.FormatInt(int64(user.ID), 10)
 		c.SetCookie("userID", userIDString, 15 * 60, "/", "", false, false)
 		utils.SimpleResponse(c, 403, "Email not verify", notVerify{
@@ -143,7 +140,9 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	utils.SimpleResponse(c, 200, "Login successful", nil)
+	utils.SimpleResponse(c, 200, "Login successful", notVerify{
+		Verify: true,
+	})
 }
 
 // Call Oauth login with google github etc
