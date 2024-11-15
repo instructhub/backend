@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InstructHub - Email Verification</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #11111b;
+        color: #cdd6f4;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+        background-color: #1e1e2e;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #45475a;
+      }
+      .logo {
+        max-width: 50px;
+        margin-right: 10px;
+      }
+      .logo-name {
+        font-size: 40px;
+        font-weight: bold;
+        color: #ffffff;
+      }
+      .modal {
+        background-color: #313244;
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        margin-top: 40px;
+      }
+      .modal h2 {
+        font-size: 22px;
+        color: #fab387;
+      }
+      .modal p {
+        font-size: 16px;
+        color: #cdd6f4;
+        margin-bottom: 30px;
+      }
+      .username {
+        font-size: 16px;
+        color: #ffffff;
+        font-weight: bold;
+      }
+      .btn {
+        display: inline-block;
+        padding: 12px 25px;
+        background-color: #a6e3a1;
+        color: #1e1e2e;
+        text-decoration: none;
+        border-radius: 5px;
+        font-size: 18px;
+        font-weight: bold;
+      }
+
+      .btn:hover {
+        background-color: #a6e3a196;
+        color: #1e1e2e;
+      }
+      footer {
+        text-align: center;
+        margin-top: 40px;
+        font-size: 14px;
+        color: #9399b2;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <img
+          src="https://media.discordapp.net/attachments/1296069927991775248/1299715965055012945/11fXsRz.png?ex=67389451&is=673742d1&hm=7e3c54911deb8e8bce05196e36d01866fe6fe5ed30facde90baada397c309120&=&format=webp&quality=lossless"
+          alt="Logo"
+          class="logo"
+        />
+        <div class="logo-name">InstructHub</div>
+      </div>
+
+      <div class="modal">
+        <h2>Email Verification</h2>
+        <p>Hello Dear, <span class="username">{{.UserName}}</span></p>
+        <p>Please verify your email by clicking the button below.</p>
+        <a href="{{.VerifyURL}}" class="btn">Verify Email</a>
+      </div>
+
+      <footer>
+        <p>If you didn't request this email, you can safely ignore it.</p>
+      </footer>
+    </div>
+  </body>
+</html>

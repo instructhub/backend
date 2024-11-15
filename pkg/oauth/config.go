@@ -25,7 +25,7 @@ func init() {
 		google.New(
 			os.Getenv("GOOGLE_CLIENT_ID"),
 			os.Getenv("GOOGLE_CLIENT_SECRET"),
-			fmt.Sprintf("%s/auth/oauth/google/callback", utils.BaseURL),
+			fmt.Sprintf("%s/auth/oauth/google/callback", utils.BackendURL),
 			"email",
 			"profile",
 		),
@@ -33,13 +33,13 @@ func init() {
 		github.New(
 			os.Getenv("GITHUB_CLIENT_ID"),
 			os.Getenv("GITHUB_CLIENT_SECRET"),
-			fmt.Sprintf("%s/auth/oauth/github/callback", utils.BaseURL),
+			fmt.Sprintf("%s/auth/oauth/github/callback", utils.BackendURL),
 		),
 
 		gitlab.New(
 			os.Getenv("GITLAB_CLIENT_ID"),
 			os.Getenv("GITLAB_CLIENT_SECRET"),
-			fmt.Sprintf("%s/auth/oauth/gitlab/callback", utils.BaseURL),
+			fmt.Sprintf("%s/auth/oauth/gitlab/callback", utils.BackendURL),
 		),
 	)
 }

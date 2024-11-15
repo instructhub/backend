@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 )
 
 var (
 	CookieRefreshTokenExpires int
 	CookieAccessTokenExpires  int
-	BaseURL                   string
+	BackendURL                   string
+	FrontendURl               string
 	GiteaORGName              string
 )
 
@@ -18,7 +21,8 @@ func init() {
 	GiteaORGName = os.Getenv("GITEA_ORG_NAME")
 	CookieRefreshTokenExpires = Atoi(os.Getenv("COOKIE_REFRESH_TOKEN_EXPIRES"))
 	CookieAccessTokenExpires = Atoi(os.Getenv("COOKIE_ACCESS_TOKEN_EXPIRES"))
-	BaseURL = fmt.Sprintf("%s/api/v%s", os.Getenv("BASE_URL"), os.Getenv("VERSION"))
+	BackendURL = fmt.Sprintf("%s/api/v%s", os.Getenv("BASE_URL"), os.Getenv("VERSION"))
+	FrontendURl = os.Getenv("BASE_URL")
 }
 
 // Magic bytes for different image formats
@@ -39,3 +43,8 @@ func IsValidImageType(magic []byte) (bool, string, error) {
 
 	return false, "", fmt.Errorf("uploaded file is not a valid image")
 }
+
+var (
+    _, b, _, _ = runtime.Caller(0)
+    RootPath = filepath.Join(filepath.Dir(b), "../..")
+)
