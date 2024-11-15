@@ -78,6 +78,8 @@ func Signup(c *gin.Context) {
 		return
 	}
 
+	// TODO: Send verify email to user
+
 	// Store the verification key in Redis (with expiration)
 	err = cache.RedisClient.Set(c, verifyToken, user.ID, 15*time.Minute).Err()
 	if err != nil {
@@ -379,3 +381,5 @@ func VerifyEmail(c *gin.Context) {
 	// Return a success response
 	utils.SimpleResponse(c, 200, "Email verification successful", nil)
 }
+
+// TODO: Resend verify email
