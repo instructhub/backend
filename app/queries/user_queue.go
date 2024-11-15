@@ -49,3 +49,17 @@ func AppendUserProviderQueue(id uint64, user models.User) error {
 	_, err := database.GetCollection("users").UpdateOne(context.Background(), filter, update)
 	return err
 }
+
+// Update user verify data
+func UpdateUesrEmailVerifyStatus(id uint64, status bool) error {
+	filter := bson.M{"id": id}
+
+	update := bson.M{
+		"$set": bson.M{
+			"verify":  status,
+		},
+	}
+
+	_, err := database.GetCollection("users").UpdateOne(context.Background(), filter, update)
+	return err
+}

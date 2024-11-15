@@ -7,9 +7,11 @@ import (
 
 	"github.com/instructhub/backend/app/models"
 	"github.com/instructhub/backend/app/queries"
+	"github.com/instructhub/backend/pkg/cache"
 	"github.com/instructhub/backend/pkg/encryption"
 	"github.com/instructhub/backend/pkg/utils"
 	"github.com/markbates/goth/gothic"
+	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/gin-gonic/gin"
@@ -56,7 +58,7 @@ func Signup(c *gin.Context) {
 		Username:  request.Username,
 		Email:     request.Email,
 		Password:  request.Password,
-		Verify: false,
+		Verify:    false,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -69,14 +71,30 @@ func Signup(c *gin.Context) {
 	}
 	user.Password = hashedPassword
 
+	// Generate verification token
+	verifyToken, err := encryption.GenerateRandomBase64String(512)
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		return
+	}
+
+	// Store the verification key in Redis (with expiration)
+	err = cache.RedisClient.Set(c, verifyToken, user.ID, 15*time.Minute).Err()
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal server error while storing verification key", err.Error())
+		return
+	}
+
+	// Create user in the queue
 	err = queries.CreateUserQueue(user)
 	if err != nil {
 		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
 		return
 	}
 
+	// Set a cookie for the user (this could be adjusted to fit your needs)
 	userIDString := strconv.FormatInt(int64(user.ID), 10)
-	c.SetCookie("userID", userIDString, 15 * 60, "/", "", false, false)
+	c.SetCookie("userID", userIDString, 15*60, "/", "", false, false)
 
 	utils.SimpleResponse(c, 200, "Signup successful please verify email", nil)
 }
@@ -121,13 +139,13 @@ func Login(c *gin.Context) {
 		utils.SimpleResponse(c, 400, "Invalid password", nil)
 		return
 	}
-	
-	type notVerify struct{
+
+	type notVerify struct {
 		Verify bool `json:"verify"`
 	}
 	if !user.Verify {
 		userIDString := strconv.FormatInt(int64(user.ID), 10)
-		c.SetCookie("userID", userIDString, 15 * 60, "/", "", false, false)
+		c.SetCookie("userID", userIDString, 15*60, "/", "", false, false)
 		utils.SimpleResponse(c, 403, "Email not verify", notVerify{
 			Verify: false,
 		})
@@ -183,7 +201,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 					}
 
 					c.HTML(200, "auth_successful.html", gin.H{
-						"Title": "Login Successful",
+						"Title":   "Login Successful",
 						"Message": "Welcome back! You've successfully logged in.",
 					})
 					return
@@ -206,7 +224,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		}
 
 		c.HTML(200, "auth_successful.html", gin.H{
-			"Title": "New login option added successfully!",
+			"Title":   "New login option added successfully!",
 			"Message": "Welcome back! You've successfully logged in.",
 		})
 		return
@@ -237,7 +255,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 
 	// Respond with success
 	c.HTML(200, "auth_successful.html", gin.H{
-		"Title": "You have successfully signed up!",
+		"Title":   "You have successfully signed up!",
 		"Message": "Signup successful! We’re glad to have you with us.",
 	})
 }
@@ -303,14 +321,61 @@ func CheckEmailVerify(c *gin.Context) {
 		Verify bool `json:"verify"`
 	}
 
-	userID := uint64(utils.Atoi(c.Param("userID")))
+	userID, err := utils.StringToUint64(c.Param("userID"))
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		return
+	}
 
 	user, err := queries.GetUserQueueByID(userID)
 	if err != nil {
 		utils.SimpleResponse(c, 404, "This user not exist", nil)
+		return
 	}
 
 	utils.SimpleResponse(c, 200, "Successful get user verify status", resp{
 		Verify: user.Verify,
 	})
+}
+
+// VerifyEmail handles the email verification process
+func VerifyEmail(c *gin.Context) {
+	// Get the verifyKey from the URL parameters
+	verifyKey := c.Param("verifyKey")
+
+	// Check if the verifyKey exists in Redis
+	userIDString, err := cache.RedisClient.Get(c, verifyKey).Result()
+	if err != nil {
+		// If the verifyKey doesn't exist in Redis, return an error
+		if err == redis.Nil {
+			utils.SimpleResponse(c, 400, "Invalid or expired verification link", nil)
+			return
+		}
+		// If there's an error while querying Redis
+		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		return
+	}
+
+	// Update the user in the database
+	userID, err := utils.StringToUint64(userIDString)
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		return
+	}
+
+	err = queries.UpdateUesrEmailVerifyStatus(userID, true)
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal server error while updating user", err.Error())
+		return
+	}
+
+	// Delete the verifyKey from Redis
+	err = cache.RedisClient.Del(c, verifyKey).Err()
+	if err != nil {
+		// Log the error if Redis deletion fails, but proceed with the verification
+		fmt.Println("Failed to delete verification key from Redis:", err.Error())
+	}
+
+	// Return a success response
+	utils.SimpleResponse(c, 200, "Email verification successful", nil)
 }

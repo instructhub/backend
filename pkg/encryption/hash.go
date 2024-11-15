@@ -9,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -29,8 +28,6 @@ var (
 
 // Hash passsword with argon2i
 func HashPassword(password string) (string, error) {
-	start := time.Now() // Start timing
-
 	memory, _ := strconv.ParseUint(os.Getenv("ARGON2_MEMORY"), 10, 32)
 	iterations, _ := strconv.ParseUint(os.Getenv("ARGON2_ITERATIONS"), 10, 32)
 	parallelism, _ := strconv.ParseUint(os.Getenv("ARGON2_PARALLELISM"), 10, 32)
@@ -54,9 +51,6 @@ func HashPassword(password string) (string, error) {
 
 	// Return the encoded hash
 	encodedHash := fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s", argon2.Version, memory, iterations, parallelism, b64Salt, b64Hash)
-
-	duration := time.Since(start)             // Calculate duration
-	fmt.Printf("Hashing took %s\n", duration) // Output duration
 
 	return encodedHash, nil
 }

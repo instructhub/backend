@@ -11,7 +11,8 @@ func AuthRoute(r *gin.RouterGroup) {
 	auth.POST("/signup", controllers.Signup)
 	auth.POST("/login", controllers.Login)
 	auth.POST("/refresh/:userID", controllers.RefreshAccessToken)
-	auth.GET("/emailverify/:userID", controllers.CheckEmailVerify)
+	auth.GET("/email/verify/check/:userID", controllers.CheckEmailVerify)
+	auth.GET("/email/verify/:verifyKey", controllers.VerifyEmail)
 
 	oauth := auth.Group("/oauth")
 
