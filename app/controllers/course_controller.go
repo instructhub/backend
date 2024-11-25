@@ -33,7 +33,7 @@ func CreateNewCourse(c *gin.Context) {
 
 	ContextUserID, exist := c.Get("userID")
 	if !exist {
-		utils.SimpleResponse(c, 500, "Error get userID", nil)
+		utils.SimpleResponse(c, 400, "Error get userID", utils.ErrBadRequest, nil)
 		return
 	}
 
@@ -43,7 +43,7 @@ func CreateNewCourse(c *gin.Context) {
 
 	// Validate request body
 	if err := c.ShouldBindJSON(&request); err != nil {
-		utils.SimpleResponse(c, 400, "Invalid request", err.Error())
+		utils.SimpleResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
 		return
 	}
 
@@ -58,7 +58,7 @@ func CreateNewCourse(c *gin.Context) {
 	stagesSeen := make(map[string]bool)
 	for _, file := range request.Files {
 		if _, exists := stagesSeen[file.Stage]; exists {
-			utils.SimpleResponse(c, 400, "Duplicate course stage: "+file.Stage, nil)
+			utils.SimpleResponse(c, 400, "Duplicate course stage: "+file.Stage, utils.ErrDuplicateCourseStage, nil)
 			return
 		}
 		stagesSeen[file.Stage] = true
@@ -74,7 +74,7 @@ func CreateNewCourse(c *gin.Context) {
 
 	repo, _, err := gt.GiteaClient.CreateOrgRepo(utils.GiteaORGName, repoOptions)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Error create new course", err.Error())
+		utils.SimpleResponse(c, 500, "Error create new course", utils.ErrCreateNewCourse, err.Error())
 		return
 	}
 
@@ -94,36 +94,36 @@ func CreateNewCourse(c *gin.Context) {
 
 		_, _, err := gt.GiteaClient.CreateFile(repo.Owner.UserName, repo.Name, file.Stage, giteaFile)
 		if err != nil {
-			utils.SimpleResponse(c, 500, "Error save course file", err.Error())
+			utils.SimpleResponse(c, 500, "Error save course file", utils.ErrSaveCourseFile, err.Error())
 			return
 		}
 	}
 
 	err = queries.CraeteNewCourse(course)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Error save course to database", err.Error())
+		utils.SimpleResponse(c, 500, "Error save course to database", utils.ErrSaveData, err.Error())
 		return
 	}
 
-	utils.SimpleResponse(c, 201, "Successful create new course", nil)
+	utils.SimpleResponse(c, 201, "Successful create new course", nil, nil)
 }
 
 func UploadImage(c *gin.Context) {
 	file, err := c.FormFile("image")
 	if err != nil {
-		utils.SimpleResponse(c, 400, "Image required", nil)
+		utils.SimpleResponse(c, 400, "Image required", utils.ErrImageRequired, nil)
 		return
 	}
 
 	courseID, err := strconv.ParseUint(c.Param("courseID"), 10, 64)
 	if err != nil {
-		utils.SimpleResponse(c, 400, "Missing course ID", nil)
+		utils.SimpleResponse(c, 400, "Missing course ID", utils.ErrMissingCourseID, nil)
 		return
 	}
 
 	userIDUntype, exists := c.Get("userID")
 	if !exists {
-		utils.SimpleResponse(c, 403, "UserID not found in context", nil)
+		utils.SimpleResponse(c, 403, "UserID not found in context", utils.ErrUserIDNotFound, nil)
 		return
 	}
 
@@ -131,7 +131,7 @@ func UploadImage(c *gin.Context) {
 
 	_, err = queries.GetCourseInformation(courseID)
 	if err != nil {
-		utils.SimpleResponse(c, 400, "This course doesn't exist", nil)
+		utils.SimpleResponse(c, 400, "This course doesn't exist", utils.ErrCourseNotExist, nil)
 		return
 	}
 
@@ -139,14 +139,14 @@ func UploadImage(c *gin.Context) {
 	const maxFileSize = 10 * 1024 * 1024
 
 	if file.Size > maxFileSize {
-		utils.SimpleResponse(c, 400, "Image too large ( > 10MB)", nil)
+		utils.SimpleResponse(c, 400, "Image too large ( > 10MB)", utils.ErrImageTooLarge, nil)
 		return
 	}
 
 	// Open the uploaded file
 	srcFile, err := file.Open()
 	if err != nil {
-		utils.SimpleResponse(c, 400, "Error opening image", nil)
+		utils.SimpleResponse(c, 400, "Error opening image", utils.ErrOpeningImage, nil)
 		return
 	}
 	defer srcFile.Close()
@@ -155,28 +155,28 @@ func UploadImage(c *gin.Context) {
 	magic := make([]byte, 8) // Adjust size as needed
 	_, err = srcFile.Read(magic)
 	if err != nil && err != io.EOF {
-		utils.SimpleResponse(c, 500, "Error reading image", nil)
+		utils.SimpleResponse(c, 500, "Error reading image", utils.ErrReadingImage, nil)
 		return
 	}
 
 	// Check if it's a valid image type
 	isImage, contentType, err := utils.IsValidImageType(magic)
-	if err != nil  || !isImage {
-		utils.SimpleResponse(c, 400, "Uploaded file is not a valid image", nil)
+	if err != nil || !isImage {
+		utils.SimpleResponse(c, 400, "Uploaded file is not a valid image", utils.ErrInvalidImage, nil)
 		return
 	}
 
 	// Reset the file pointer to the beginning to ensure the full file can be read
 	_, err = srcFile.Seek(0, io.SeekStart)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Error resetting file pointer", nil)
+		utils.SimpleResponse(c, 500, "Error resetting file pointer", utils.ErrResetFilePointer, nil)
 		return
 	}
 
 	// Read the entire file into a bytes.Buffer
 	var src bytes.Buffer
 	if _, err := src.ReadFrom(srcFile); err != nil {
-		utils.SimpleResponse(c, 500, "Error reading image", nil)
+		utils.SimpleResponse(c, 500, "Error reading image", utils.ErrReadingImage, nil)
 		return
 	}
 
@@ -194,7 +194,7 @@ func UploadImage(c *gin.Context) {
 		ContentType: &contentType, // Set the content type here
 	})
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Unable to upload the file", nil)
+		utils.SimpleResponse(c, 500, "Unable to upload the file", utils.ErrS3UploadFailed, nil)
 		return
 	}
 
@@ -205,11 +205,11 @@ func UploadImage(c *gin.Context) {
 		CreatedAt: time.Now(),
 	})
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Failed to upload to mongodb", nil)
+		utils.SimpleResponse(c, 500, "Failed to upload to MongoDB", utils.ErrSaveData, nil)
 		return
 	}
 
 	// Construct the file URL
 	fileURL := fmt.Sprintf("%s/%s/%s", os.Getenv("S3_ENDPOINT"), store.CourseImageBuckerName, filePath)
-	utils.SimpleResponse(c, 201, "File uploaded successfully", fileURL)
+	utils.SimpleResponse(c, 201, "File uploaded successfully", nil, fileURL)
 }

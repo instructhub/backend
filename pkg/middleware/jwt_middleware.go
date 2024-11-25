@@ -14,7 +14,7 @@ func IsAuthorized() gin.HandlerFunc {
 		cookie, err := c.Request.Cookie("access_token")
 
 		if err != nil || cookie.Value == "" {
-			utils.SimpleResponse(c, 403, "Authorization token is empty.", nil)
+			utils.SimpleResponse(c, 403, "Authorization token is empty.", "authentication_key_not_found", nil)
 			c.Abort()
 			return
 		}
@@ -31,21 +31,21 @@ func IsAuthorized() gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid || parseError {
-			utils.SimpleResponse(c, 403, "Unauthorized", nil)
+			utils.SimpleResponse(c, 403, "Unauthorized", "unauthorized", nil)
 			c.Abort()
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			utils.SimpleResponse(c, 403, "Unauthorized", nil)
+			utils.SimpleResponse(c, 403, "Unauthorized", "unauthorized", nil)
 			c.Abort()
 			return
 		}
 		expiresAtFloat, ok := claims["expires"].(float64)
 
 		if !ok {
-			utils.SimpleResponse(c, 403, "Invalid datatype", nil)
+			utils.SimpleResponse(c, 403, "Invalid expries datatype", "unauthorized", nil)
 			c.Abort()
 			return
 		}
@@ -53,14 +53,14 @@ func IsAuthorized() gin.HandlerFunc {
 		expiresAt := int64(expiresAtFloat)
 
 		if time.Now().Unix() >= expiresAt {
-			utils.SimpleResponse(c, 403, "Token expired", nil)
+			utils.SimpleResponse(c, 403, "Token expired", "token_expired", nil)
 			c.Abort()
 			return
 		}
 
 		userIDFloat, ok := claims["sub"].(float64)
 		if !ok {
-			utils.SimpleResponse(c, 403, "UserID error", nil)
+			utils.SimpleResponse(c, 403, "UserID error", "unauthorized", nil)
 			c.Abort()
 			return
 		}

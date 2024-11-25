@@ -31,27 +31,27 @@ func Signup(c *gin.Context) {
 
 	// Validate request body
 	if err := c.ShouldBindJSON(&request); err != nil {
-		utils.SimpleResponse(c, 400, "Invalid request", err.Error())
+		utils.SimpleResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
 		return
 	}
 
 	// Check if email already been used
 	_, err := queries.GetUserQueueByEmail(request.Email)
 	if err == nil {
-		utils.SimpleResponse(c, 400, "Email already been used", nil)
+		utils.SimpleResponse(c, 400, "Email already been used", utils.ErrEmailAlreadyUsed, nil)
 		return
 	} else if err != mongo.ErrNoDocuments {
-		utils.SimpleResponse(c, 500, "Internal server error while checking email", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error while checking email", utils.ErrGetData, nil)
 		return
 	}
 
 	// Check if username already been used
 	_, err = queries.GetUserQueueByUsername(request.Username)
 	if err == nil {
-		utils.SimpleResponse(c, 400, "Username already been used", nil)
+		utils.SimpleResponse(c, 400, "Username already been used", utils.ErrUsernameAlreadyUsed, nil)
 		return
 	} else if err != mongo.ErrNoDocuments {
-		utils.SimpleResponse(c, 500, "Internal server error while checking username", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error while checking username", utils.ErrGetData, err.Error())
 		return
 	}
 
@@ -68,7 +68,7 @@ func Signup(c *gin.Context) {
 	// Hash password
 	hashedPassword, err := encryption.HashPassword(user.Password)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrHashData, err.Error())
 		return
 	}
 	user.Password = hashedPassword
@@ -76,7 +76,7 @@ func Signup(c *gin.Context) {
 	// Generate verification token
 	verifyToken, err := encryption.GenerateRandomBase64String(512)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrHashData, err.Error())
 		return
 	}
 
@@ -92,26 +92,26 @@ func Signup(c *gin.Context) {
 	t := template.New("Email verification")
 	t, err = t.ParseFiles("template/email_verificaiton.html")
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrParseFile, err.Error())
 	}
 	t.ExecuteTemplate(&emailBody, "email_verificaiton.html", data)
 	err = utils.SendEmail(user.Email, "Verification your email", emailBody.String())
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error while send verification email", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error while send verification email", utils.ErrSendEmail, err.Error())
 		return
 	}
 
 	// Store the verification key in Redis (with expiration)
 	err = cache.RedisClient.Set(c, verifyToken, user.ID, 15*time.Minute).Err()
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error while storing verification key", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error while storing verification key", utils.ErrSaveData, err.Error())
 		return
 	}
 
 	// Create user in the queue
 	err = queries.CreateUserQueue(user)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrSaveData, err.Error())
 		return
 	}
 
@@ -119,7 +119,7 @@ func Signup(c *gin.Context) {
 	userIDString := strconv.FormatInt(int64(user.ID), 10)
 	c.SetCookie("userID", userIDString, 60*60, "/", "", false, false)
 
-	utils.SimpleResponse(c, 200, "Signup successful please verify email", nil)
+	utils.SimpleResponse(c, 200, "Signup successful please verify email", nil, nil)
 }
 
 type EmailLoginRequest struct {
@@ -134,12 +134,12 @@ func Login(c *gin.Context) {
 
 	// Validate request body
 	if err := c.ShouldBindJSON(&request); err != nil {
-		utils.SimpleResponse(c, 400, "Invalid request", err.Error())
+		utils.SimpleResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
 		return
 	}
 
 	if request.Username == "" && request.Email == "" {
-		utils.SimpleResponse(c, 400, "Username or email is required", nil)
+		utils.SimpleResponse(c, 400, "Username or email is required", utils.ErrBadRequest, nil)
 		return
 	}
 
@@ -153,13 +153,13 @@ func Login(c *gin.Context) {
 	}
 
 	if err != nil {
-		utils.SimpleResponse(c, 400, "Invalid username or email", nil)
+		utils.SimpleResponse(c, 400, "Invalid username or email", utils.ErrInvalidUsernameOrEmail, nil)
 		return
 	}
 
 	match, err := encryption.ComparePasswordAndHash(request.Password, user.Password)
 	if err != nil || !match {
-		utils.SimpleResponse(c, 400, "Invalid password", nil)
+		utils.SimpleResponse(c, 400, "Invalid password", utils.ErrInvalidPassword, nil)
 		return
 	}
 
@@ -169,7 +169,7 @@ func Login(c *gin.Context) {
 	if !user.Verify {
 		userIDString := strconv.FormatInt(int64(user.ID), 10)
 		c.SetCookie("userID", userIDString, 60*60, "/", "", false, false)
-		utils.SimpleResponse(c, 403, "Email not verify", notVerify{
+		utils.SimpleResponse(c, 403, "Email not verify", utils.ErrEmailNotVerify , notVerify{
 			Verify: false,
 		})
 		return
@@ -177,11 +177,11 @@ func Login(c *gin.Context) {
 
 	err = utils.GenerateUserSession(c, user.ID)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrGenerateSession, err.Error())
 		return
 	}
 
-	utils.SimpleResponse(c, 200, "Login successful", notVerify{
+	utils.SimpleResponse(c, 200, "Login successful", nil, notVerify{
 		Verify: true,
 	})
 }
@@ -194,14 +194,15 @@ func OAuthHandler(c *gin.Context, cprovider string) {
 	gothic.BeginAuthHandler(c.Writer, c.Request)
 }
 
-// Oauth call back for google github etc
+// OAuth callback handler for Google, GitHub, etc.
 func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	q := c.Request.URL.Query()
 	q.Add("provider", cprovider)
 	c.Request.URL.RawQuery = q.Encode()
+
 	request, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Interal server error", err)
+		utils.SimpleResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
 		return
 	}
 
@@ -209,7 +210,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	user, err = queries.GetUserQueueByEmail(request.Email)
 
 	if err != nil && err != mongo.ErrNoDocuments {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrGetData, err.Error())
 		return
 	}
 
@@ -219,12 +220,12 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 				continue
 			}
 			if user.Providers[i].OAuthID != request.UserID {
-				utils.SimpleResponse(c, 403, "OAuthID mismatched!", nil)
+				utils.SimpleResponse(c, 403, "OAuthID mismatched!", utils.ErrUnauthorized, nil)
 				return
 			}
 			err = utils.GenerateUserSession(c, user.ID)
 			if err != nil {
-				utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+				utils.SimpleResponse(c, 500, "Internal server error", utils.ErrGenerateSession, err.Error())
 				return
 			}
 
@@ -242,7 +243,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 
 		err = utils.GenerateUserSession(c, user.ID)
 		if err != nil {
-			utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+			utils.SimpleResponse(c, 500, "Internal server error", utils.ErrGenerateSession, err.Error())
 			return
 		}
 
@@ -253,6 +254,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		return
 	}
 
+	// New user creation process
 	user = models.User{
 		ID:        encryption.GenerateID(),
 		Avatar:    request.AvatarURL,
@@ -265,14 +267,13 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 
 	err = queries.CreateUserQueue(user)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrSaveData, err.Error())
 		return
 	}
 
 	err = utils.GenerateUserSession(c, user.ID)
 	if err != nil {
-		fmt.Println(err.Error())
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrGenerateSession, err.Error())
 		return
 	}
 
@@ -284,79 +285,97 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 }
 
 func RefreshAccessToken(c *gin.Context) {
+	// Retrieve the refresh token from the cookie
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil {
-		utils.SimpleResponse(c, 403, "Invide refresh token", nil)
+		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
+		return
 	}
 
+	// Parse the user ID from the URL parameter
 	userID := uint64(utils.Atoi(c.Param("userID")))
 
+	// Retrieve the session associated with the refresh token
 	session, err := queries.GetSessionQueue(refreshToken)
 	if err == mongo.ErrNoDocuments {
-		utils.SimpleResponse(c, 403, "Invide refresh token", nil)
+		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
 		return
 	}
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal error", err.Error())
-	}
-
-	if session.UserID != userID {
-		utils.SimpleResponse(c, 403, "User ID not match with refresh_token", nil)
+		utils.SimpleResponse(c, 500, "Internal error", utils.ErrGetData, err.Error())
 		return
 	}
 
+	// Ensure the user ID matches the session's user ID
+	if session.UserID != userID {
+		utils.SimpleResponse(c, 403, "User ID does not match refresh token", utils.ErrUnauthorized, nil)
+		return
+	}
+
+	// Generate a new access token with the desired expiration
 	accessTokenExpiresAt := time.Now().Add(time.Minute * time.Duration(utils.CookieAccessTokenExpires))
 	accessToken, err := encryption.GenerateNewJwtToken(userID, []string{}, accessTokenExpiresAt)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal error", nil)
+		utils.SimpleResponse(c, 500, "Internal error", utils.ErrGenerateSession, err.Error())
 		return
 	}
 
+	// Set the new access token in the response cookie
 	c.SetCookie("access_token", accessToken, utils.CookieAccessTokenExpires*60, "/", "", false, true)
-	utils.SimpleResponse(c, 200, "Successful rotate access token", nil)
+
+	// Return a successful response
+	utils.SimpleResponse(c, 200, "Successfully refreshed access token", "", nil)
 }
 
 func LogOut(c *gin.Context) {
+	// Retrieve the refresh token from the cookie
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil {
-		utils.SimpleResponse(c, 403, "Invalid refresh token", nil)
+		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
 		return
 	}
 
+	// Attempt to delete the session associated with the refresh token
 	result := queries.DeleteSessionQueue(refreshToken)
 	if result.Err() == mongo.ErrNoDocuments {
-		utils.SimpleResponse(c, 403, "Invalid refresh token", nil)
+		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
 		return
 	}
 	if result.Err() != nil {
-		utils.SimpleResponse(c, 500, "Internal error", result.Err().Error())
+		utils.SimpleResponse(c, 500, "Internal error", utils.ErrGetData, result.Err().Error())
 		return
 	}
 
+	// Clear the refresh token and access token cookies by setting their expiry date to -1
 	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
 	c.SetCookie("access_token", "", -1, "/", "", false, true)
 
-	utils.SimpleResponse(c, 200, "Logged out successfully", nil)
+	// Return a successful response
+	utils.SimpleResponse(c, 200, "Logged out successfully", "", nil)
 }
 
+// CheckEmailVerify checks if the user's email has been verified
 func CheckEmailVerify(c *gin.Context) {
 	type resp struct {
 		Verify bool `json:"verify"`
 	}
 
+	// Convert userID from string to uint64
 	userID, err := utils.StringToUint64(c.Param("userID"))
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrParseFile, err.Error())
 		return
 	}
 
+	// Retrieve user from the database
 	user, err := queries.GetUserQueueByID(userID)
 	if err != nil {
-		utils.SimpleResponse(c, 404, "This user not exist", nil)
+		utils.SimpleResponse(c, 404, "User not found", utils.ErrGetData, nil)
 		return
 	}
 
-	utils.SimpleResponse(c, 200, "Successful get user verify status", resp{
+	// Respond with user's verification status
+	utils.SimpleResponse(c, 200, "Successfully retrieved email verification status", "", resp{
 		Verify: user.Verify,
 	})
 }
@@ -369,69 +388,73 @@ func VerifyEmail(c *gin.Context) {
 	// Check if the verifyKey exists in Redis
 	userIDString, err := cache.RedisClient.Get(c, verifyKey).Result()
 	if err != nil {
-		// If the verifyKey doesn't exist in Redis, return an error
 		if err == redis.Nil {
+			utils.SimpleResponse(c, 400, "Invalid verification key", utils.ErrBadRequest, nil)
 			c.Redirect(303, utils.FrontendURl+"/login?verify=false")
 			return
 		}
-		// If there's an error while querying Redis
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		// Handle Redis-related errors
+		utils.SimpleResponse(c, 500, "Internal server error while accessing Redis", utils.ErrGetData, err.Error())
 		return
 	}
 
-	// Update the user in the database
+	// Convert userID from string to uint64
 	userID, err := utils.StringToUint64(userIDString)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error while parsing user ID", utils.ErrParseFile, err.Error())
 		return
 	}
 
+	// Update the user's email verification status in the database
 	err = queries.UpdateUesrEmailVerifyStatus(userID, true)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error while updating user", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error while updating user email verification status", utils.ErrSaveData, err.Error())
 		return
 	}
 
-	// Delete the verifyKey from Redis
+	// Delete the verifyKey from Redis after successful verification
 	err = cache.RedisClient.Del(c, verifyKey).Err()
 	if err != nil {
-		// Log the error if Redis deletion fails, but proceed with the verification
+		// Log the error but continue the verification process
 		fmt.Println("Failed to delete verification key from Redis:", err.Error())
 	}
 
-	// Return a success response
+	// Redirect to the frontend with the result of the verification
 	c.Redirect(303, utils.FrontendURl+"/login?verify=true")
 }
 
 // FIXME: Need to use a rate limiter with 60 secs per request
-// Resend verify email
+// ResendVerificationEmail handles resending the verification email
 func ResendVerificationEmail(c *gin.Context) {
-	// Get the verifyKey from the URL parameters
+	// Get the userID from the URL parameters
 	userIDString := c.Param("userID")
 	userID, err := utils.StringToUint64(userIDString)
 	if err != nil {
-		utils.SimpleResponse(c, 400, "User ID not vaild", nil)
+		utils.SimpleResponse(c, 400, "Invalid User ID", utils.ErrParseData, err.Error())
 		return
 	}
 
+	// Retrieve user details from the database
 	user, err := queries.GetUserQueueByID(userID)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error while fetching user", utils.ErrGetData, err.Error())
 		return
 	}
 
+	// If the user is already verified, return a response
 	if user.Verify {
-		utils.SimpleResponse(c, 400, "User already verify", nil)
+		utils.SimpleResponse(c, 400, "User is already verified", nil, nil)
 		return
 	}
 
-	// Generate verification token
+	// Generate a random verification token
 	verifyToken, err := encryption.GenerateRandomBase64String(512)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error while generating verification token", utils.ErrGenerateToken, err.Error())
 		return
 	}
 
+	// Prepare email data
 	type EmailData struct {
 		VerifyURL string
 		UserName  string
@@ -440,26 +463,35 @@ func ResendVerificationEmail(c *gin.Context) {
 		VerifyURL: utils.BackendURL + "/auth/email/verify/" + verifyToken,
 		UserName:  user.Username,
 	}
+
+	// Render the email body with the template
 	var emailBody bytes.Buffer
 	t := template.New("Email verification")
 	t, err = t.ParseFiles("template/email_verificaiton.html")
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error while parsing email template", utils.ErrParseFile, err.Error())
+		return
 	}
-	t.ExecuteTemplate(&emailBody, "email_verificaiton.html", data)
-	err = utils.SendEmail(user.Email, "Verification your email", emailBody.String())
+	err = t.ExecuteTemplate(&emailBody, "email_verificaiton.html", data)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error while send verification email", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error while executing email template", utils.ErrExecuteTemplate, err.Error())
 		return
 	}
 
-	// Store the verification key in Redis (with expiration)
+	// Send the verification email
+	err = utils.SendEmail(user.Email, "Verify your email", emailBody.String())
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal server error while sending verification email", utils.ErrSendEmail, err.Error())
+		return
+	}
+
+	// Store the verification token in Redis with an expiration of 15 minutes
 	err = cache.RedisClient.Set(c, verifyToken, user.ID, 15*time.Minute).Err()
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error while storing verification key", err.Error())
+		utils.SimpleResponse(c, 500, "Internal server error while storing verification token in Redis", utils.ErrStoreRedis, err.Error())
 		return
 	}
 
 	// Return a success response
-	utils.SimpleResponse(c, 200, "Verification email successful sent", nil)
+	utils.SimpleResponse(c, 200, "Verification email successfully sent", nil, nil)
 }
