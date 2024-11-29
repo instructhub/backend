@@ -7,7 +7,7 @@ import (
 )
 
 func CourseRoute(r *gin.RouterGroup) {
-	course := r.Group("/course")
+	course := r.Group("/courses")
 	course.Use(middleware.IsAuthorized())
 
 	course.POST("/new", controllers.CreateNewCourse)

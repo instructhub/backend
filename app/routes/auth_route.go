@@ -10,7 +10,7 @@ func AuthRoute(r *gin.RouterGroup) {
 
 	auth.POST("/signup", controllers.Signup)
 	auth.POST("/login", controllers.Login)
-	auth.POST("/refresh/:userID", controllers.RefreshAccessToken)
+	auth.POST("/refresh", controllers.RefreshAccessToken)
 	auth.GET("/email/verify/check/:userID", controllers.CheckEmailVerify)
 	auth.GET("/email/verify/:verifyKey", controllers.VerifyEmail)
 	auth.POST("/email/verify/resend/:userID", controllers.ResendVerificationEmail)

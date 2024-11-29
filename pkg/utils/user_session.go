@@ -2,6 +2,8 @@ package utils
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,10 +13,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+var secret bool = false
+
 // Generate new user access_token and refresh_token
 func GenerateUserSession(c *gin.Context, userID uint64) error {
 	var err error
-	secretKey, err := encryption.RandStringRunes(256)
+	secretKey, err := encryption.RandStringRunes(2048, true)
 	if err != nil {
 		return err
 	}
@@ -47,8 +51,20 @@ func GenerateUserSession(c *gin.Context, userID uint64) error {
 		return err
 	}
 
-	c.SetCookie("refresh_token", session.SecretKey, CookieRefreshTokenExpires * 24 * 60 * 60, BackendURL + "/auth/refresh/", "", false, true)
-	c.SetCookie("access_token", accessToken, CookieAccessTokenExpires * 60, "/", "", false, true)
+	c.SetCookie("refresh_token", session.SecretKey, CookieRefreshTokenExpires * 24 * 60 * 60, BackendURL + "/auth/refresh/", "", secret, true)
+	c.SetCookie("access_token", accessToken, CookieAccessTokenExpires * 60, "/", "", secret, false)
 
 	return nil
 }
+
+func init() {
+	baseURL := os.Getenv("BASE_URL")
+
+	if strings.HasPrefix(baseURL, "https://") {
+		secret = true
+		} else {
+			secret = false
+
+	}
+}
+

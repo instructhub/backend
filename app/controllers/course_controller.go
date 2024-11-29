@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -188,7 +187,7 @@ func UploadImage(c *gin.Context) {
 
 	// Upload the image to S3 with explicit content type
 	_, err = store.Client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket:      &store.CourseImageBuckerName,
+		Bucket:      &store.StaticBucket,
 		Key:         &filePath,
 		Body:        bytes.NewReader(src.Bytes()),
 		ContentType: &contentType, // Set the content type here
@@ -204,12 +203,13 @@ func UploadImage(c *gin.Context) {
 		Craetor:   userID,
 		CreatedAt: time.Now(),
 	})
+
 	if err != nil {
 		utils.SimpleResponse(c, 500, "Failed to upload to MongoDB", utils.ErrSaveData, nil)
 		return
 	}
 
 	// Construct the file URL
-	fileURL := fmt.Sprintf("%s/%s/%s", os.Getenv("S3_ENDPOINT"), store.CourseImageBuckerName, filePath)
+	fileURL := fmt.Sprintf("%s/%s", store.StaticBucketUrl, filePath)
 	utils.SimpleResponse(c, 201, "File uploaded successfully", nil, fileURL)
 }

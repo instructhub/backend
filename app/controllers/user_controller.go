@@ -1,29 +1,23 @@
 package controllers
 
 import (
-	"strconv"
-
 	"github.com/gin-gonic/gin"
+	"github.com/instructhub/backend/app/models"
 	"github.com/instructhub/backend/app/queries"
 	"github.com/instructhub/backend/pkg/utils"
+	"github.com/jinzhu/copier"
 )
 
 func GetProfile(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		utils.SimpleResponse(c, 403, "Invalid datatype", utils.ErrBadRequest, nil)
-		return
-	}
-
 	jwtContextID, exists := c.Get("userID")
 	if !exists {
 		utils.SimpleResponse(c, 403, "UserID not found in context", utils.ErrUserIDNotFound, nil)
 		return
 	}
 
-	jwtContextIDUint := jwtContextID.(uint64)
+	userID := jwtContextID.(uint64)
 
-	if _, err := queries.GetUserQueueByID(userID); err != nil || jwtContextIDUint != userID {
+	if _, err := queries.GetUserQueueByID(userID); err != nil {
 		utils.SimpleResponse(c, 403, "UserID error", utils.ErrGetData, nil)
 		return
 	}
@@ -35,5 +29,12 @@ func GetProfile(c *gin.Context) {
 		return
 	}
 
-	utils.SimpleResponse(c, 200, "User profile acquire", nil, user)
+	var userProfile models.UserProfile
+	err = copier.Copy(&userProfile, &user)
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrChangeType, err.Error())
+		return
+	}
+
+	utils.SimpleResponse(c, 200, "User profile acquire", nil, userProfile)
 }

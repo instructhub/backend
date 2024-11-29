@@ -169,7 +169,7 @@ func Login(c *gin.Context) {
 	if !user.Verify {
 		userIDString := strconv.FormatInt(int64(user.ID), 10)
 		c.SetCookie("userID", userIDString, 60*60, "/", "", false, false)
-		utils.SimpleResponse(c, 403, "Email not verify", utils.ErrEmailNotVerify , notVerify{
+		utils.SimpleResponse(c, 403, "Email not verify", utils.ErrEmailNotVerify, notVerify{
 			Verify: false,
 		})
 		return
@@ -292,10 +292,6 @@ func RefreshAccessToken(c *gin.Context) {
 		return
 	}
 
-	// Parse the user ID from the URL parameter
-	userID := uint64(utils.Atoi(c.Param("userID")))
-
-	// Retrieve the session associated with the refresh token
 	session, err := queries.GetSessionQueue(refreshToken)
 	if err == mongo.ErrNoDocuments {
 		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
@@ -306,11 +302,7 @@ func RefreshAccessToken(c *gin.Context) {
 		return
 	}
 
-	// Ensure the user ID matches the session's user ID
-	if session.UserID != userID {
-		utils.SimpleResponse(c, 403, "User ID does not match refresh token", utils.ErrUnauthorized, nil)
-		return
-	}
+	userID := session.UserID
 
 	// Generate a new access token with the desired expiration
 	accessTokenExpiresAt := time.Now().Add(time.Minute * time.Duration(utils.CookieAccessTokenExpires))
@@ -321,10 +313,10 @@ func RefreshAccessToken(c *gin.Context) {
 	}
 
 	// Set the new access token in the response cookie
-	c.SetCookie("access_token", accessToken, utils.CookieAccessTokenExpires*60, "/", "", false, true)
+	c.SetCookie("access_token", accessToken, utils.CookieAccessTokenExpires*60, "/", "", false, false)
 
 	// Return a successful response
-	utils.SimpleResponse(c, 200, "Successfully refreshed access token", "", nil)
+	utils.SimpleResponse(c, 200, "Successfully refreshed access token", nil, nil)
 }
 
 func LogOut(c *gin.Context) {
@@ -348,7 +340,7 @@ func LogOut(c *gin.Context) {
 
 	// Clear the refresh token and access token cookies by setting their expiry date to -1
 	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
-	c.SetCookie("access_token", "", -1, "/", "", false, true)
+	c.SetCookie("access_token", "", -1, "/", "", false, false)
 
 	// Return a successful response
 	utils.SimpleResponse(c, 200, "Logged out successfully", "", nil)

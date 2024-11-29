@@ -18,10 +18,15 @@ import (
 
 var Client *s3.Client
 
-var CourseImageBuckerName string = "course-image"
-var AvatarBucketsName string = "avatar"
+var (
+	StaticBucket    string
+	StaticBucketUrl string
+)
 
 func init() {
+	StaticBucket = os.Getenv("S3_STATIC_BUCKET")
+	StaticBucketUrl = os.Getenv("S3_STATIC_BUCKET_BASEURL")
+
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(os.Getenv("S3_ACCESS_KEY_ID"), os.Getenv("S3_SECRET_KEY"), "")),
 		config.WithRegion("auto"),
@@ -55,7 +60,7 @@ func init() {
 	})
 
 	// Check if the bucket exists
-	bucketsName := []string{CourseImageBuckerName, AvatarBucketsName}
+	bucketsName := []string{StaticBucket}
 	for _, bucketName := range bucketsName {
 		_, err = Client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
 			Bucket: &bucketName,

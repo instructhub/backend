@@ -29,6 +29,14 @@ func main() {
 	routes.AuthRoute(r)
 	routes.UserRoute(r)
 	routes.CourseRoute(r)
+	routes.PublicRouter(r)
+
+	root.NoRoute(func(c *gin.Context) {
+		c.JSON(404, gin.H{
+			"error":   "resource_not_found",
+			"message": "Resource not found",
+		})
+	})
 
 	if err := root.Run(); err != nil {
 		fmt.Printf("Server failed to start: %v\n", err)

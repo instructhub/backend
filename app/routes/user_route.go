@@ -7,8 +7,8 @@ import (
 )
 
 func UserRoute(r *gin.RouterGroup) {
-	user := r.Group("/user")
+	user := r.Group("/users")
 	user.Use(middleware.IsAuthorized())
 
-	user.GET("/allprofile/:id", controllers.GetProfile) // Admin use only
+	user.GET("/personal/profile", controllers.GetProfile) // Admin use only
 }

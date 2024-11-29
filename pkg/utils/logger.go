@@ -1,10 +1,16 @@
 package utils
 
-import "go.uber.org/zap"
+import (
+	"os"
 
-var Logger zap.Logger
+	"go.uber.org/zap"
+)
+
+var Logger *zap.Logger
 
 func init() {
-	Logger, _ := zap.NewProduction()
-	defer Logger.Sync()
+	Logger = zap.Must(zap.NewProduction())
+	if os.Getenv("GIN_MODE") == "debug" {
+		Logger = zap.Must(zap.NewDevelopment())
+	}
 }

@@ -42,7 +42,7 @@ func IsAuthorized() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		expiresAtFloat, ok := claims["expires"].(float64)
+		expiresAtFloat, ok := claims["exp"].(float64)
 
 		if !ok {
 			utils.SimpleResponse(c, 403, "Invalid expries datatype", "unauthorized", nil)
