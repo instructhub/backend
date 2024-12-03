@@ -17,8 +17,8 @@ var (
 // InitializeRedis initializes the Redis client.
 func init() {
 	// Read Redis database number.
-	limiterDB := 1
-	normalDB := 0
+	limiterDB := 0
+	normalDB := 1
 
 	host := os.Getenv("CACHE_HOST")
 	port := os.Getenv("CACHE_PORT")
