@@ -1,11 +1,11 @@
 package utils
 
 import (
-	"log"
 	"regexp"
 
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
+	"github.com/instructhub/backend/pkg/logger"
 )
 
 var LangList = []string{"en", "es", "zh-tw", "zh-cn"}
@@ -40,6 +40,6 @@ func init() {
 		v.RegisterValidation("lang", langLocalValidator)
 		v.RegisterValidation("username", usernameValidator)
 	} else {
-		log.Fatalf("error registering validator")
+		logger.Log.Fatal("error registering validator")
 	}
 }

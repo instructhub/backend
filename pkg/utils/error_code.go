@@ -51,6 +51,7 @@ const (
 const (
 	ErrHashData        = "hash_data_failed"
 	ErrParseFile       = "template_parse_failed"
+	ErrParse           = "data_parse_failed"
 	ErrSendEmail       = "send_email_failed"
 	ErrGenerateSession = "generate_session_failed"
 	ErrParseData       = "parse_data_failed"

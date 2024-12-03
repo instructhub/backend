@@ -1,12 +1,12 @@
 package encryption
 
 import (
-	"log"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/godruoyi/go-snowflake"
+	"github.com/instructhub/backend/pkg/logger"
 )
 
 // Init snowflake to set MachineID and start time
@@ -15,7 +15,7 @@ func init() {
 	num, err := strconv.Atoi(machineID)
 
 	if err != nil {
-		log.Fatalln("Error to init snowflake invalid MACHINE_ID")
+		logger.Log.Fatal("Error to init snowflake invalid MACHINE_ID")
 	}
 
 	snowflake.SetMachineID(uint16(num))

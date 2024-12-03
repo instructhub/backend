@@ -3,10 +3,10 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
+	"github.com/instructhub/backend/pkg/logger"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -26,13 +26,13 @@ func init() {
 	// Connect to MongoDB
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Sugar().Fatalf("Failed to connect to MongoDB:", err)
 	}
 
 	// Check connection
 	err = client.Ping(ctx, nil)
 	if err != nil {
-		log.Fatal("Failed to connect to MongoDB:", err)
+		logger.Log.Sugar().Fatal("Failed to connect to MongoDB:", err)
 	}
 
 	MongoClient = client
@@ -49,7 +49,7 @@ func GetCollection(collectionName string) *mongo.Collection {
 // CloseMongoDB Close MongoDB connection
 func CloseMongoDB() {
 	if err := MongoClient.Disconnect(context.TODO()); err != nil {
-		log.Fatal("Failed to disconnect from MongoDB:", err)
+		logger.Log.Sugar().Fatal("Failed to disconnect from MongoDB:", err)
 	}
 	fmt.Println("Successfully disconnected from MongoDB")
 }

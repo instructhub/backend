@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/instructhub/backend/pkg/logger"
 	"github.com/instructhub/backend/pkg/utils"
 	"github.com/joho/godotenv"
 	"github.com/markbates/goth"
@@ -17,7 +17,7 @@ import (
 func init() {
 	err := godotenv.Load("template.env")
 	if err != nil {
-		log.Fatalf("Error loading .env file")
+		logger.Log.Fatal("Error loading .env file")
 	}
 
 	// Change your url

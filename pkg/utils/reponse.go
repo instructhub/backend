@@ -1,26 +1,11 @@
 package utils
 
 import (
-	"fmt"
-
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
 
 // SimpleResponse simplifies the gin response process and handles errors appropriately.
 func SimpleResponse(c *gin.Context, statusCode int, message string, errorCode interface{}, data interface{}) {
-	// Check if the status code indicates a server error
-	if statusCode >= 500 && statusCode < 600 {
-		// Log the error with structured fields
-		Logger.With(
-			zap.Int("status", statusCode),
-			zap.String("message", message),
-			zap.Any("data", data),
-			zap.String("error_code", fmt.Sprintf("%v", errorCode)),
-		).Error("Server error occurred")
-		data = nil
-	}
-
 	// Prepare the response payload
 	response := gin.H{"message": message}
 

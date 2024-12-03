@@ -73,7 +73,8 @@ func CreateNewCourse(c *gin.Context) {
 
 	repo, _, err := gt.GiteaClient.CreateOrgRepo(utils.GiteaORGName, repoOptions)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Error create new course", utils.ErrCreateNewCourse, err.Error())
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while create new course", utils.ErrCreateNewCourse, nil)
 		return
 	}
 
@@ -93,14 +94,16 @@ func CreateNewCourse(c *gin.Context) {
 
 		_, _, err := gt.GiteaClient.CreateFile(repo.Owner.UserName, repo.Name, file.Stage, giteaFile)
 		if err != nil {
-			utils.SimpleResponse(c, 500, "Error save course file", utils.ErrSaveCourseFile, err.Error())
+			c.Error(err)
+			utils.SimpleResponse(c, 500, "Internal server error while save course file", utils.ErrSaveCourseFile, nil)
 			return
 		}
 	}
 
 	err = queries.CraeteNewCourse(course)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Error save course to database", utils.ErrSaveData, err.Error())
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while save course to database", utils.ErrSaveData, nil)
 		return
 	}
 
@@ -154,7 +157,8 @@ func UploadImage(c *gin.Context) {
 	magic := make([]byte, 8) // Adjust size as needed
 	_, err = srcFile.Read(magic)
 	if err != nil && err != io.EOF {
-		utils.SimpleResponse(c, 500, "Error reading image", utils.ErrReadingImage, nil)
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while reading image", utils.ErrReadingImage, nil)
 		return
 	}
 
@@ -175,7 +179,8 @@ func UploadImage(c *gin.Context) {
 	// Read the entire file into a bytes.Buffer
 	var src bytes.Buffer
 	if _, err := src.ReadFrom(srcFile); err != nil {
-		utils.SimpleResponse(c, 500, "Error reading image", utils.ErrReadingImage, nil)
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while reading image", utils.ErrReadingImage, nil)
 		return
 	}
 
@@ -193,7 +198,8 @@ func UploadImage(c *gin.Context) {
 		ContentType: &contentType, // Set the content type here
 	})
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Unable to upload the file", utils.ErrS3UploadFailed, nil)
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while upload the file", utils.ErrS3UploadFailed, nil)
 		return
 	}
 
@@ -205,7 +211,8 @@ func UploadImage(c *gin.Context) {
 	})
 
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Failed to upload to MongoDB", utils.ErrSaveData, nil)
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while upload to MongoDB", utils.ErrSaveData, nil)
 		return
 	}
 

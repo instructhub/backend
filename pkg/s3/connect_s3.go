@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/instructhub/backend/pkg/logger"
 )
 
 var Client *s3.Client
@@ -32,7 +32,7 @@ func init() {
 		config.WithRegion("auto"),
 	)
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Fatal(err.Error())
 	}
 
 	// Create a custom transport to disable TLS verification
@@ -50,7 +50,7 @@ func init() {
 	} else if pathStyle == "false" {
 		usePathStyle = false
 	} else {
-		log.Printf("S3_PATH_STYLE is not set to a recognized value. Defaulting to false.")
+		logger.Log.Fatal("S3_PATH_STYLE is not set to a recognized value. Defaulting to false.")
 	}
 
 	Client = s3.NewFromConfig(cfg, func(o *s3.Options) {
@@ -74,10 +74,10 @@ func init() {
 					Bucket: &bucketName,
 				})
 				if createErr != nil {
-					log.Fatalf("Failed to create bucket %s: %v", bucketName, createErr)
+					logger.Log.Sugar().Fatalf("Failed to create bucket %s: %v", bucketName, createErr)
 					return
 				}
-				log.Printf("Bucket %s created successfully.", bucketName)
+				logger.Log.Sugar().Infof("Bucket %s created successfully.", bucketName)
 
 				// Set the bucket policy to make it publicly readable
 				policy := fmt.Sprintf(`{
@@ -97,12 +97,12 @@ func init() {
 					Policy: &policy,
 				})
 				if policyErr != nil {
-					log.Fatalf("Failed to set public read policy for bucket %s: %v", bucketName, policyErr)
+					logger.Log.Sugar().Fatalf("Failed to set public read policy for bucket %s: %v", bucketName, policyErr)
 					return
 				}
-				log.Printf("Public read policy set for bucket %s.", bucketName)
+				logger.Log.Sugar().Info("Public read policy set for bucket %s.", bucketName)
 			} else {
-				log.Fatalf("Failed to check bucket %s: %v", bucketName, err)
+				logger.Log.Sugar().Fatalf("Failed to check bucket %s: %v", bucketName, err)
 				return
 			}
 		}

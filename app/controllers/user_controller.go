@@ -25,14 +25,16 @@ func GetProfile(c *gin.Context) {
 	user, err := queries.GetUserQueueByID(userID)
 
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Error get user data", utils.ErrGetData, err)
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while get user data", utils.ErrGetData, nil)
 		return
 	}
 
 	var userProfile models.UserProfile
 	err = copier.Copy(&userProfile, &user)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrChangeType, err.Error())
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while process image", utils.ErrChangeType, nil)
 		return
 	}
 
