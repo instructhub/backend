@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
-	"strconv"
 	"time"
 
 	"github.com/instructhub/backend/app/models"
@@ -124,9 +123,15 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	// Set a cookie for the user (this could be adjusted to fit your needs)
-	userIDString := strconv.FormatInt(int64(user.ID), 10)
-	c.SetCookie("userID", userIDString, 60*60, "/", "", false, false)
+	// Set a verify pedding jwt cookie for the user 
+	verifyPeddingTokenExpiresAt := time.Now().Add(time.Minute * 15)
+	verifyPeddintToken, err := encryption.GenerateNewJwtToken(user.ID, []string{"pedding"}, verifyPeddingTokenExpiresAt)
+	if err != nil {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while generate verify pedding token", utils.ErrGenerateToken,nil)	
+		return
+	}
+	c.SetCookie("verify_pedding", verifyPeddintToken, 15*60, "/", "", false, false)
 
 	utils.SimpleResponse(c, 200, "Signup successful please verify email", nil, nil)
 }
@@ -176,8 +181,15 @@ func Login(c *gin.Context) {
 		Verify bool `json:"verify"`
 	}
 	if !user.Verify {
-		userIDString := strconv.FormatInt(int64(user.ID), 10)
-		c.SetCookie("userID", userIDString, 60*60, "/", "", false, false)
+		// Set a verify pedding jwt cookie for the user 
+		verifyPeddingTokenExpiresAt := time.Now().Add(time.Minute * 15)
+		verifyPeddintToken, err := encryption.GenerateNewJwtToken(user.ID, []string{"pedding"}, verifyPeddingTokenExpiresAt)
+		if err != nil {
+			c.Error(err)
+			utils.SimpleResponse(c, 500, "Internal server error while generate verify pedding token", utils.ErrGenerateToken,nil)	
+			return
+		}
+		c.SetCookie("verify_pedding", verifyPeddintToken, 15*60, "/", "", false, false)
 		utils.SimpleResponse(c, 403, "Email not verify", utils.ErrEmailNotVerify, notVerify{
 			Verify: false,
 		})
@@ -432,24 +444,39 @@ func VerifyEmail(c *gin.Context) {
 		fmt.Println("Failed to delete verification key from Redis:", err.Error())
 	}
 
+	_, exist := c.Get("userID")
+	if exist {
+		err = utils.GenerateUserSession(c, userID)
+		if err != nil {
+			c.Error(err)
+			utils.SimpleResponse(c, 500, "Internal server error", utils.ErrGenerateSession, nil)
+			return
+		}
+		c.Redirect(303, utils.FrontendURl+"/")
+	}
+
 	// Redirect to the frontend with the result of the verification
 	c.Redirect(303, utils.FrontendURl+"/login?verify=true")
 }
 
-// FIXME: Need to use a rate limiter with 60 secs per request
+// TODO: Need to use a rate limiter with 60 secs per request
 // ResendVerificationEmail handles resending the verification email
 func ResendVerificationEmail(c *gin.Context) {
 	// Get the userID from the URL parameters
-	userIDString := c.Param("userID")
-	userID, err := utils.StringToUint64(userIDString)
-	if err != nil {
-		utils.SimpleResponse(c, 400, "Invalid User ID", utils.ErrParseData, err.Error())
+	ContextUserID, exist := c.Get("userID")
+	if !exist {
+		utils.SimpleResponse(c, 403, "Unauthorized", utils.ErrUnauthorized, nil)
 		return
 	}
 
+	userID := ContextUserID.(uint64)
+
 	// Retrieve user details from the database
 	user, err := queries.GetUserQueueByID(userID)
-	if err != nil {
+	if err == mongo.ErrNoDocuments {
+		utils.SimpleResponse(c, 404, "User not find", utils.ErrGetData, nil)
+		return
+	} else if err != nil {
 		c.Error(err)
 		utils.SimpleResponse(c, 500, "Internal server error while fetching user", utils.ErrGetData, nil)
 		return
@@ -457,7 +484,7 @@ func ResendVerificationEmail(c *gin.Context) {
 
 	// If the user is already verified, return a response
 	if user.Verify {
-		
+
 		utils.SimpleResponse(c, 400, "User is already verified", nil, nil)
 		return
 	}

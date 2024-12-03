@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/instructhub/backend/app/controllers"
+	"github.com/instructhub/backend/pkg/middleware"
 )
 
 func AuthRoute(r *gin.RouterGroup) {
@@ -12,8 +13,8 @@ func AuthRoute(r *gin.RouterGroup) {
 	auth.POST("/login", controllers.Login)
 	auth.POST("/refresh", controllers.RefreshAccessToken)
 	auth.GET("/email/verify/check/:userID", controllers.CheckEmailVerify)
-	auth.GET("/email/verify/:verifyKey", controllers.VerifyEmail)
-	auth.POST("/email/verify/resend/:userID", controllers.ResendVerificationEmail)
+	auth.GET("/email/verify/:verifyKey", middleware.IsPeddingVerify(), controllers.VerifyEmail)
+	auth.POST("/email/verify/resend", middleware.IsPeddingVerify(), controllers.ResendVerificationEmail)
 
 	oauth := auth.Group("/oauth")
 
