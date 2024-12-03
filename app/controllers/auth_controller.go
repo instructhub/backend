@@ -292,7 +292,8 @@ func RefreshAccessToken(c *gin.Context) {
 		return
 	}
 
-	session, err := queries.GetSessionQueue(refreshToken)
+	// Check refresh token valid and update to used
+	session, err := queries.FindOneAndUpdateSession(refreshToken, true)
 	if err == mongo.ErrNoDocuments {
 		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
 		return
@@ -301,20 +302,18 @@ func RefreshAccessToken(c *gin.Context) {
 		utils.SimpleResponse(c, 500, "Internal error", utils.ErrGetData, err.Error())
 		return
 	}
-
-	userID := session.UserID
-
-	// Generate a new access token with the desired expiration
-	accessTokenExpiresAt := time.Now().Add(time.Minute * time.Duration(utils.CookieAccessTokenExpires))
-	accessToken, err := encryption.GenerateNewJwtToken(userID, []string{}, accessTokenExpiresAt)
-	if err != nil {
-		utils.SimpleResponse(c, 500, "Internal error", utils.ErrGenerateSession, err.Error())
+	if session.Used {
+		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
+		// TODO: Send warm email to user email
 		return
 	}
 
 	// Set the new access token in the response cookie
-	c.SetCookie("access_token", accessToken, utils.CookieAccessTokenExpires*60, "/", "", false, false)
-
+	err = utils.GenerateUserSession(c, session.UserID)
+	if err != nil {
+		utils.SimpleResponse(c, 500, "Internal server error", utils.ErrGenerateSession, err.Error())
+		return
+	}
 	// Return a successful response
 	utils.SimpleResponse(c, 200, "Successfully refreshed access token", nil, nil)
 }

@@ -9,11 +9,13 @@ import (
 )
 
 var (
+	// Unit is days
 	CookieRefreshTokenExpires int
-	CookieAccessTokenExpires  int
-	BackendURL                   string
-	FrontendURl               string
-	GiteaORGName              string
+	// Unit is minutes
+	CookieAccessTokenExpires int
+	BackendURL               string
+	FrontendURl              string
+	GiteaORGName             string
 )
 
 // Init some usefil variables
@@ -45,6 +47,6 @@ func IsValidImageType(magic []byte) (bool, string, error) {
 }
 
 var (
-    _, b, _, _ = runtime.Caller(0)
-    RootPath = filepath.Join(filepath.Dir(b), "../..")
+	_, b, _, _ = runtime.Caller(0)
+	RootPath   = filepath.Join(filepath.Dir(b), "../..")
 )

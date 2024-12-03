@@ -18,7 +18,7 @@ var secret bool = false
 // Generate new user access_token and refresh_token
 func GenerateUserSession(c *gin.Context, userID uint64) error {
 	var err error
-	secretKey, err := encryption.RandStringRunes(2048, true)
+	secretKey, err := encryption.RandStringRunes(1024, true)
 	if err != nil {
 		return err
 	}
@@ -51,8 +51,8 @@ func GenerateUserSession(c *gin.Context, userID uint64) error {
 		return err
 	}
 
-	c.SetCookie("refresh_token", session.SecretKey, CookieRefreshTokenExpires * 24 * 60 * 60, BackendURL + "/auth/refresh/", "", secret, true)
-	c.SetCookie("access_token", accessToken, CookieAccessTokenExpires * 60, "/", "", secret, false)
+	c.SetCookie("refresh_token", session.SecretKey, CookieRefreshTokenExpires*24*60*60, "", "", secret, true)
+	c.SetCookie("access_token", accessToken, CookieAccessTokenExpires*60, "/", "", secret, false)
 
 	return nil
 }
@@ -62,9 +62,8 @@ func init() {
 
 	if strings.HasPrefix(baseURL, "https://") {
 		secret = true
-		} else {
-			secret = false
+	} else {
+		secret = false
 
 	}
 }
-

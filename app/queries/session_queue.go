@@ -27,3 +27,13 @@ func DeleteSessionQueue(secretKey string) *mongo.SingleResult {
 	err := database.GetCollection("sessions").FindOneAndDelete(context.Background(), bson.M{"secret_key": secretKey})
 	return err
 }
+
+// Find and update session
+func FindOneAndUpdateSession(secretKey string, used bool) (session models.Session, err error) {
+	filter := bson.M{"secret_key": secretKey}
+	update := bson.M{"$set": bson.M{"used": used}}
+
+	result := database.GetCollection("sessions").FindOneAndUpdate(context.Background(), filter, update).Decode(&session)
+
+	return session, result
+}

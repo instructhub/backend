@@ -25,7 +25,7 @@ func SimpleResponse(c *gin.Context, statusCode int, message string, errorCode in
 	response := gin.H{"message": message}
 
 	if data != nil {
-		response["data"] = data
+		response["result"] = data
 	}
 
 	// If it's an error, include an "error" field
