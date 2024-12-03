@@ -20,10 +20,10 @@ import (
 )
 
 type EmailAuthRequest struct {
-	Username string `json:"username" binding:"required,max=30,min=3,username"`
-	Nickname string `json:"nickname" binding:"required,max=30,min=3,alphanumunicode"`
-	Email    string `json:"email" binding:"required,email,max=320"`
-	Password string `json:"password" binding:"required,max=128,min=8"`
+	Username    string `json:"username" binding:"required,max=32,min=3,username"`
+	DisplayName string `json:"display_name" binding:"required,max=32,min=1,alphanumunicode"`
+	Email       string `json:"email" binding:"required,email,max=320"`
+	Password    string `json:"password" binding:"required,max=128,min=8"`
 }
 
 // For user using email signup
@@ -59,14 +59,14 @@ func Signup(c *gin.Context) {
 	}
 
 	user := models.User{
-		ID:        encryption.GenerateID(),
-		Nickname:  request.Nickname,
-		Username:  request.Username,
-		Email:     request.Email,
-		Password:  request.Password,
-		Verify:    false,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          encryption.GenerateID(),
+		DisplayName: request.DisplayName,
+		Username:    request.Username,
+		Email:       request.Email,
+		Password:    request.Password,
+		Verify:      false,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
 	// Hash password
@@ -140,7 +140,7 @@ func Signup(c *gin.Context) {
 }
 
 type EmailLoginRequest struct {
-	Username string `json:"username" binding:"max=30"`
+	Username string `json:"username" binding:"max=32"`
 	Email    string `json:"email" binding:"email,max=320"`
 	Password string `json:"password" binding:"required,max=128,min=8"`
 }
@@ -286,14 +286,14 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	userIDString := strconv.FormatUint(uint64(userID), 10)
 	// New user creation process
 	user = models.User{
-		ID:        userID,
-		Avatar:    request.AvatarURL,
-		Nickname:  request.Name,
-		Username:  userIDString,
-		Email:     request.Email,
-		Providers: []models.Provider{{Provider: request.Provider, OAuthID: request.UserID}},
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          userID,
+		Avatar:      request.AvatarURL,
+		DisplayName: request.Name,
+		Username:    userIDString,
+		Email:       request.Email,
+		Providers:   []models.Provider{{Provider: request.Provider, OAuthID: request.UserID}},
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
 	for {
