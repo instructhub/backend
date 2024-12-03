@@ -31,7 +31,7 @@ var langLocalValidator validator.Func = func(fl validator.FieldLevel) bool {
 
 var usernameValidator validator.Func = func(fl validator.FieldLevel) bool {
 	username := fl.Field().String()
-	matched, _ := regexp.MatchString(`^[a-zA-Z0-9._]+$`, username)
+	matched, _ := regexp.MatchString(`^[a-z0-9._]+$`, username)
 	return matched
 }
 

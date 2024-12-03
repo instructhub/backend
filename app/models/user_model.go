@@ -6,7 +6,8 @@ import "time"
 type User struct {
 	ID        uint64     `json:"id" bson:"id" binding:"required"`
 	Avatar    string     `json:"avatar,omitempty" bson:"avatar,omitempty"`
-	Username  string     `json:"username" bson:"username" binding:"required"`  // Unique
+	Username  string     `json:"username" bson:"username" binding:"required"` // Unique
+	Nickname  string     `json:"nickname" bson:"nickname" binding:"required,max=50"`
 	Email     string     `json:"email" bson:"email" binding:"required,email"`  // Unique
 	Password  string     `json:"password,omitempty" bson:"password,omitempty"` // Hashed password, omit for OAuth users
 	Providers []Provider `json:"providers" bson:"providers"`
