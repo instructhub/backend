@@ -8,7 +8,6 @@ type Session struct {
 	SecretKey string    `json:"secret_key" bson:"secret_key"`
 	UserAgent string    `json:"user_agent" bson:"user_agent"`
 	UserID    uint64    `json:"user_id" bson:"user_id"`
-	Used      bool      `json:"used" bson:"used"`
 	ExpiresAt time.Time `json:"expires_at" bson:"expires_at"`
 	CreatedAt time.Time `json:"created_at" bson:"created_at"`
 }

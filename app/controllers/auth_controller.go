@@ -337,7 +337,7 @@ func RefreshAccessToken(c *gin.Context) {
 	}
 
 	// Check refresh token valid and update to used
-	session, err := queries.FindOneAndUpdateSession(refreshToken, true)
+	session, err := queries.FindOneAndDelete(refreshToken)
 	if err == mongo.ErrNoDocuments {
 		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
 		return
@@ -345,11 +345,6 @@ func RefreshAccessToken(c *gin.Context) {
 	if err != nil {
 		c.Error(err)
 		utils.SimpleResponse(c, 500, "Internal server error while get data", utils.ErrGetData, nil)
-		return
-	}
-	if session.Used {
-		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
-		// TODO: Send warm email to user email
 		return
 	}
 

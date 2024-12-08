@@ -10,5 +10,8 @@ func UserRoute(r *gin.RouterGroup) {
 	user := r.Group("/users")
 	user.Use(middleware.IsAuthorized())
 
-	user.GET("/personal/profile", controllers.GetProfile) // Admin use only
+	// Cheeck for login or not
+	user.GET("/login/check", controllers.CheckLogin) 
+	// Get user personal profile
+	user.GET("/personal/profile", controllers.GetProfile)
 }

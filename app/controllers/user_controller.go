@@ -8,6 +8,10 @@ import (
 	"github.com/jinzhu/copier"
 )
 
+func CheckLogin(c *gin.Context) {
+	utils.SimpleResponse(c, 200, "User already login", nil, nil)
+}
+
 func GetProfile(c *gin.Context) {
 	jwtContextID, exists := c.Get("userID")
 	if !exists {
@@ -40,3 +44,4 @@ func GetProfile(c *gin.Context) {
 
 	utils.SimpleResponse(c, 200, "User profile acquire", nil, userProfile)
 }
+

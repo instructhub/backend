@@ -5,5 +5,5 @@ import (
 )
 
 func PublicRouter(r *gin.RouterGroup) {
-	 r.Group("/public")
+	r.Group("/public")
 }
