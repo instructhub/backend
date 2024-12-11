@@ -22,8 +22,8 @@ import (
 
 func CreateNewCourse(c *gin.Context) {
 	type CreateCourseRequest struct {
-		CourseTitle            string `json:"course_title" binding:"required"`
-		CourseShortDescription string `json:"course_short_description" binding:"required"`
+		Name       string `json:"name" binding:"required,max=50"`
+		Description string `json:"description" binding:"required,max=200"`
 	}
 
 	var request CreateCourseRequest
@@ -43,17 +43,17 @@ func CreateNewCourse(c *gin.Context) {
 	}
 
 	course := models.Course{
-		CourseCreator:          userID,
-		CourseTitle:            request.CourseTitle,
-		CourseShortDescription: request.CourseShortDescription,
-		CourseID:               encryption.GenerateID(),
-		CreateAt:               time.Now(),
-		UpdatedAt:              time.Now(),
+		ID:          encryption.GenerateID(),
+		Creator:     userID,
+		Name:       request.Name,
+		Description: request.Description,
+		CreateAt:    time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
 	repoOptions := gitea.CreateRepoOption{
-		Name:          strconv.FormatUint(uint64(course.CourseID), 10),
-		Description:   "Title:" + request.CourseTitle + " Description:" + request.CourseShortDescription,
+		Name:          strconv.FormatUint(uint64(course.ID), 10),
+		Description:   "Name:" + request.Name + " Description:" + request.Description,
 		DefaultBranch: "en",
 		AutoInit:      true,
 		Private:       true,
@@ -73,7 +73,7 @@ func CreateNewCourse(c *gin.Context) {
 		return
 	}
 
-	utils.SimpleResponse(c, 201, "Successful create new course", nil, nil)
+	utils.SimpleResponse(c, 201, "Successful create new course", nil, course)
 }
 
 func UploadImage(c *gin.Context) {
@@ -171,7 +171,7 @@ func UploadImage(c *gin.Context) {
 
 	err = queries.CraeteCourseImage(models.CourseImage{
 		ImageLink: filePath,
-		CourseID:  courseID,
+		ID:        courseID,
 		Craetor:   userID,
 		CreatedAt: time.Now(),
 	})

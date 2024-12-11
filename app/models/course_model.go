@@ -3,17 +3,17 @@ package models
 import "time"
 
 type Course struct {
-	CourseID               uint64    `json:"course_id" bson:"course_id"`
-	CourseCreator          uint64    `json:"course_creator" bson:"course_creator"`
-	CourseTitle            string    `json:"course_title" bson:"course_tile"`
-	CourseShortDescription string    `json:"course_short_description" bson:"course_short_description"`
+	ID               uint64    `json:"id" bson:"id"`
+	Creator          uint64    `json:"creator" bson:"creator"`
+	Name            string    `json:"name" bson:"name"`
+	Description string    `json:"description" bson:"description"`
 	UpdatedAt              time.Time `json:"updated_at" bson:"updated_at"`
 	CreateAt               time.Time `json:"create_at" bson:"create_at"`
 }
 
 type CourseImage struct {
 	ImageLink string `json:"image_link" bson:"image_link"`
-	CourseID uint64 `json:"course_id" bson:"course_id"`
+	ID uint64 `json:"id" bson:"id"`
 	Craetor uint64 `json:"creator" bson:"creator"`
 	CreatedAt time.Time `json:"created_at" bson:"created_at"`
 }
