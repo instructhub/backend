@@ -22,12 +22,10 @@ import (
 
 func CreateNewCourse(c *gin.Context) {
 	type CreateCourseRequest struct {
-		CourseTitle            string              `json:"course_title" binding:"required"`
-		CourseShortDescription string              `json:"course_short_description" binding:"required"`
-		Files                  []models.CourseFile `json:"files" binding:"required,dive"`
+		CourseTitle            string `json:"course_title" binding:"required"`
+		CourseShortDescription string `json:"course_short_description" binding:"required"`
 	}
 
-	var course models.Course
 	var request CreateCourseRequest
 
 	ContextUserID, exist := c.Get("userID")
@@ -38,29 +36,19 @@ func CreateNewCourse(c *gin.Context) {
 
 	userID := ContextUserID.(uint64)
 
-	userIDString := strconv.FormatUint(uint64(userID), 10)
-
 	// Validate request body
 	if err := c.ShouldBindJSON(&request); err != nil {
 		utils.SimpleResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
 		return
 	}
 
-	course.CourseCreator = userID
-	course.CourseTitle = request.CourseTitle
-	course.CourseShortDescription = request.CourseShortDescription
-	course.CourseID = encryption.GenerateID()
-	course.CreateAt = time.Now()
-	course.UpdatedAt = time.Now()
-
-	// Check if the stage duplicate
-	stagesSeen := make(map[string]bool)
-	for _, file := range request.Files {
-		if _, exists := stagesSeen[file.Stage]; exists {
-			utils.SimpleResponse(c, 400, "Duplicate course stage: "+file.Stage, utils.ErrDuplicateCourseStage, nil)
-			return
-		}
-		stagesSeen[file.Stage] = true
+	course := models.Course{
+		CourseCreator:          userID,
+		CourseTitle:            request.CourseTitle,
+		CourseShortDescription: request.CourseShortDescription,
+		CourseID:               encryption.GenerateID(),
+		CreateAt:               time.Now(),
+		UpdatedAt:              time.Now(),
 	}
 
 	repoOptions := gitea.CreateRepoOption{
@@ -71,33 +59,11 @@ func CreateNewCourse(c *gin.Context) {
 		Private:       true,
 	}
 
-	repo, _, err := gt.GiteaClient.CreateOrgRepo(utils.GiteaORGName, repoOptions)
+	_, _, err := gt.GiteaClient.CreateOrgRepo(utils.GiteaORGName, repoOptions)
 	if err != nil {
 		c.Error(err)
 		utils.SimpleResponse(c, 500, "Internal server error while create new course", utils.ErrCreateNewCourse, nil)
 		return
-	}
-
-	for _, file := range request.Files {
-		giteaFile := gitea.CreateFileOptions{
-			FileOptions: gitea.FileOptions{
-				Message: file.Message,
-				Committer: gitea.Identity{
-					Name: userIDString,
-				},
-				Author: gitea.Identity{
-					Name: userIDString,
-				},
-			},
-			Content: file.Content,
-		}
-
-		_, _, err := gt.GiteaClient.CreateFile(repo.Owner.UserName, repo.Name, file.Stage, giteaFile)
-		if err != nil {
-			c.Error(err)
-			utils.SimpleResponse(c, 500, "Internal server error while save course file", utils.ErrSaveCourseFile, nil)
-			return
-		}
 	}
 
 	err = queries.CraeteNewCourse(course)
