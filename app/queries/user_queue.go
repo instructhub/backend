@@ -7,21 +7,26 @@ import (
 )
 
 // Get user by email
-func GetUserQueueByEmail(email string) (user models.User,result *gorm.DB) {
-	result = db.GetDB().Where("email = ?", email).First(&user)
+func GetUserQueueByEmail(email string) (models.User, *gorm.DB) {
+	var user models.User
+	user.Email = email
+	result := db.GetDB().First(&user)
 	return user, result
 }
 
 // Get user by username
-func GetUserQueueByUsername(username string) (user models.User,result *gorm.DB) {
-	// Use Where to filter by username
-	result = db.GetDB().Where("username = ?", username).First(&user)
+func GetUserQueueByUsername(username string) (models.User, *gorm.DB) {
+	var user models.User
+	user.Username = username
+	result := db.GetDB().First(&user)
 	return user, result
 }
 
 // Get user by user ID
-func GetUserQueueByID(id uint64) (user models.User,result *gorm.DB) {
-	result = db.GetDB().Where("id = ?", id).First(&user)
+func GetUserQueueByID(id uint64) (models.User, *gorm.DB) {
+	var user models.User
+	user.ID = id
+	result := db.GetDB().First(&user)
 	return user, result
 }
 
