@@ -15,6 +15,7 @@ import (
 	"github.com/markbates/goth/gothic"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 )
@@ -37,23 +38,23 @@ func Signup(c *gin.Context) {
 	}
 
 	// Check if email already been used
-	_, err := queries.GetUserQueueByEmail(request.Email)
-	if err == nil {
+	_, result := queries.GetUserQueueByEmail(request.Email)
+	if result.Error == nil {
 		utils.SimpleResponse(c, 400, "Email already been used", utils.ErrEmailAlreadyUsed, nil)
 		return
-	} else if err != mongo.ErrNoDocuments {
-		c.Error(err)
+	} else if result.Error != gorm.ErrRecordNotFound {
+		c.Error(result.Error)
 		utils.SimpleResponse(c, 500, "Internal server error while checking email", utils.ErrGetData, nil)
 		return
 	}
 
 	// Check if username already been used
-	_, err = queries.GetUserQueueByUsername(request.Username)
-	if err == nil {
+	_, result = queries.GetUserQueueByUsername(request.Username)
+	if result.Error == nil {
 		utils.SimpleResponse(c, 400, "Username already been used", utils.ErrUsernameAlreadyUsed, nil)
 		return
-	} else if err != mongo.ErrNoDocuments {
-		c.Error(err)
+	} else if result.Error != gorm.ErrRecordNotFound {
+		c.Error(result.Error)
 		utils.SimpleResponse(c, 500, "Internal server error while checking username", utils.ErrGetData, nil)
 		return
 	}
@@ -119,9 +120,9 @@ func Signup(c *gin.Context) {
 	}
 
 	// Create user in the queue
-	err = queries.CreateUserQueue(user)
-	if err != nil {
-		c.Error(err)
+	result = queries.CreateUserQueue(user)
+	if result.Error != nil || result.RowsAffected == 0 {
+		c.Error(result.Error)
 		utils.SimpleResponse(c, 500, "Internal server error while create new user", utils.ErrSaveData, nil)
 		return
 	}
@@ -140,7 +141,6 @@ func Signup(c *gin.Context) {
 }
 
 type EmailLoginRequest struct {
-	Username string `json:"username" binding:"max=32"`
 	Email    string `json:"email" binding:"email,max=320"`
 	Password string `json:"password" binding:"required,max=128,min=8"`
 }
@@ -155,22 +155,22 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	if request.Username == "" && request.Email == "" {
-		utils.SimpleResponse(c, 400, "Username or email is required", utils.ErrBadRequest, nil)
+	if request.Email == "" {
+		utils.SimpleResponse(c, 400, "Email is required", utils.ErrBadRequest, nil)
 		return
 	}
 
 	var user models.User
-	var err error
+	var result *gorm.DB
 
-	if request.Username != "" {
-		user, err = queries.GetUserQueueByUsername(request.Username)
-	} else {
-		user, err = queries.GetUserQueueByEmail(request.Email)
-	}
+	user, result = queries.GetUserQueueByEmail(request.Email)
 
-	if err != nil {
-		utils.SimpleResponse(c, 400, "Invalid username or email", utils.ErrInvalidUsernameOrEmail, nil)
+	if result.Error == gorm.ErrRecordNotFound {
+		utils.SimpleResponse(c, 400, "Invalid email", utils.ErrInvalidUsernameOrEmail, nil)
+		return
+	} else if result.Error != nil {
+		c.Error(result.Error)
+		utils.SimpleResponse(c, 500, "Internal server error while check email", utils.ErrGetData, nil)
 		return
 	}
 
@@ -219,12 +219,27 @@ func OAuthHandler(c *gin.Context, cprovider string) {
 	gothic.BeginAuthHandler(c.Writer, c.Request)
 }
 
+func GetProviderFromString(provider string) (models.Provider, error) {
+	switch provider {
+	case "google":
+		return models.ProviderGoogle, nil
+	case "github":
+		return models.ProviderGithub, nil
+	case "gitlab":
+		return models.ProviderGitlab, nil
+	default:
+		return -1, fmt.Errorf("unknown provider: %s", provider)
+	}
+}
+
 // OAuth callback handler for Google, GitHub, etc.
 func OAuthCallbackHandler(c *gin.Context, cprovider string) {
+	// Add the provider to the query parameters to keep track of it
 	q := c.Request.URL.Query()
 	q.Add("provider", cprovider)
 	c.Request.URL.RawQuery = q.Encode()
 
+	// Complete the user authentication
 	request, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
 		utils.SimpleResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
@@ -232,49 +247,79 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	}
 
 	var user models.User
-	user, err = queries.GetUserQueueByEmail(request.Email)
-
-	if err != nil && err != mongo.ErrNoDocuments {
-		c.Error(err)
-		utils.SimpleResponse(c, 500, "Internal server error while get user", utils.ErrGetData, nil)
+	// Get user and associated OAuth providers by email
+	user, result := queries.GetUserAndProvider(request.Email)
+	if result.Error != nil && result.Error != mongo.ErrNoDocuments {
+		c.Error(result.Error)
+		utils.SimpleResponse(c, 500, "Internal server error while getting user", utils.ErrGetData, nil)
 		return
 	}
 
-	if err == nil {
-		for i, p := range user.Providers {
-			if p.Provider != request.Provider {
+	// Convert the provider string to the corresponding enum value
+	provider, err := GetProviderFromString(request.Provider)
+	if err != nil {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while parsing provider", utils.ErrParseData, nil)
+		return
+	}
+
+	// If the user is found
+	if result.Error == nil {
+		// Iterate through associated OAuth providers
+		for _, p := range *user.OauthProviders {
+			// Skip to the next iteration if the provider doesn't match
+			if p.Provider != provider {
 				continue
 			}
-			if user.Providers[i].OAuthID != request.UserID {
+
+			// Check if the OAuthID matches
+			if p.OAuthID != request.UserID {
 				utils.SimpleResponse(c, 403, "OAuthID mismatched!", utils.ErrUnauthorized, nil)
 				return
 			}
+
+			// Generate user session after successful authentication
 			err = utils.GenerateUserSession(c, user.ID)
 			if err != nil {
 				c.Error(err)
-				utils.SimpleResponse(c, 500, "Internal server error while generate session", utils.ErrGenerateSession, nil)
+				utils.SimpleResponse(c, 500, "Internal server error while generating session", utils.ErrGenerateSession, nil)
 				return
 			}
 
+			// Send a successful login response
 			c.HTML(200, "auth_successful.html", gin.H{
 				"Title":   "Login Successful",
 				"Message": "Welcome back! You've successfully logged in.",
 			})
 			return
 		}
-		// If provider is new, append it
-		user.Providers = append(user.Providers, models.Provider{Provider: request.Provider, OAuthID: request.UserID})
-		user.UpdatedAt = time.Now()
 
-		queries.AppendUserProviderQueue(uint64(user.ID), user)
+		// If provider is new, add it to the database
+		reseult := queries.AddUserProvider(models.OauthProvider{
+			ID:        encryption.GenerateID(),
+			UserID:    user.ID,
+			Provider:  provider,
+			OAuthID:   request.UserID,
+			UpdatedAt: time.Now(),
+			CreatedAt: time.Now(),
+		})
 
-		err = utils.GenerateUserSession(c, user.ID)
-		if err != nil {
-			c.Error(err)
-			utils.SimpleResponse(c, 500, "Internal server error while generate session", utils.ErrGenerateSession, nil)
+		// Check if there was an error while adding the provider
+		if result.Error != nil || reseult.RowsAffected == 0 {
+			c.Error(result.Error)
+			utils.SimpleResponse(c, 500, "Internal server error while adding OAuth provider", utils.ErrSaveData, nil)
 			return
 		}
 
+		// Generate user session after successful provider addition
+		err = utils.GenerateUserSession(c, user.ID)
+		if err != nil {
+			c.Error(err)
+			utils.SimpleResponse(c, 500, "Internal server error while generating session", utils.ErrGenerateSession, nil)
+			return
+		}
+
+		// Send a successful response when a new login option is added
 		c.HTML(200, "auth_successful.html", gin.H{
 			"Title":   "New login option added successfully!",
 			"Message": "Welcome back! You've successfully logged in.",
@@ -282,23 +327,24 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		return
 	}
 
+	// Handle the case when the user is not found, and create a new user
 	userID := encryption.GenerateID()
 	userIDString := strconv.FormatUint(uint64(userID), 10)
 	// New user creation process
 	user = models.User{
 		ID:          userID,
-		Avatar:      request.AvatarURL,
+		Avatar:      &request.AvatarURL,
 		DisplayName: request.Name,
 		Username:    userIDString,
 		Email:       request.Email,
-		Providers:   []models.Provider{{Provider: request.Provider, OAuthID: request.UserID}},
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
+	// Check if the generated username already exists, and regenerate if needed
 	for {
-		_, err := queries.GetUserQueueByUsername(user.Username)
-		if err == mongo.ErrNoDocuments {
+		_, result := queries.GetUserQueueByUsername(user.Username)
+		if result.Error == gorm.ErrRecordNotFound {
 			break
 		}
 		userID = encryption.GenerateID()
@@ -307,21 +353,23 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		user.Username = userIDString
 	}
 
-	err = queries.CreateUserQueue(user)
-	if err != nil {
-		c.Error(err)
-		utils.SimpleResponse(c, 500, "Internal server error while create user", utils.ErrSaveData, nil)
+	// Create the new user in the database
+	result = queries.CreateUserQueue(user)
+	if result.Error != nil || result.RowsAffected == 0 {
+		c.Error(result.Error)
+		utils.SimpleResponse(c, 500, "Internal server error while creating user", utils.ErrSaveData, nil)
 		return
 	}
 
+	// Generate user session after successful user creation
 	err = utils.GenerateUserSession(c, user.ID)
 	if err != nil {
 		c.Error(err)
-		utils.SimpleResponse(c, 500, "Internal server error while generate session", utils.ErrGenerateSession, nil)
+		utils.SimpleResponse(c, 500, "Internal server error while generating session", utils.ErrGenerateSession, nil)
 		return
 	}
 
-	// Respond with success
+	// Send a successful response for new user signup
 	c.HTML(200, "auth_successful.html", gin.H{
 		"Title":   "You have successfully signed up!",
 		"Message": "Signup successful! We’re glad to have you with us.",
@@ -336,15 +384,25 @@ func RefreshAccessToken(c *gin.Context) {
 		return
 	}
 
-	// Check refresh token valid and update to used
-	session, err := queries.FindOneAndDelete(refreshToken)
-	if err == mongo.ErrNoDocuments {
+	// Check refresh token valid
+	session, result := queries.GetSessionQueueBySecretKey(refreshToken)
+	if result.Error == gorm.ErrRecordNotFound {
 		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
 		return
+	} else if result.Error != nil {
+		c.Error(result.Error)
+		utils.SimpleResponse(c, 500, "Internal server error while get session", utils.ErrGetData, nil)
+		return
 	}
-	if err != nil {
-		c.Error(err)
-		utils.SimpleResponse(c, 500, "Internal server error while get data", utils.ErrGetData, nil)
+
+	// Delete this session
+	result = queries.DeleteSessionQueue(refreshToken)
+	if result.Error != nil {
+		c.Error(result.Error)
+		utils.SimpleResponse(c, 500, "Internal server error while delete session", utils.ErrDeleteData, nil)
+		return
+	} else if result.RowsAffected == 0 {
+		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
 		return
 	}
 
@@ -369,13 +427,12 @@ func LogOut(c *gin.Context) {
 
 	// Attempt to delete the session associated with the refresh token
 	result := queries.DeleteSessionQueue(refreshToken)
-	if result.Err() == mongo.ErrNoDocuments {
-		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
-		return
-	}
-	if result.Err() != nil {
-		c.Error(err)
+	if result.Error != nil {
+		c.Error(result.Error)
 		utils.SimpleResponse(c, 500, "Internal server error while delete session", utils.ErrGetData, nil)
+		return
+	} else if result.Error == gorm.ErrRecordNotFound {
+		utils.SimpleResponse(c, 403, "Invalid refresh token", utils.ErrUnauthorized, nil)
 		return
 	}
 
@@ -402,9 +459,13 @@ func CheckEmailVerify(c *gin.Context) {
 	}
 
 	// Retrieve user from the database
-	user, err := queries.GetUserQueueByID(userID)
-	if err != nil {
+	user, result := queries.GetUserQueueByID(userID)
+	if result.Error == gorm.ErrRecordNotFound {
 		utils.SimpleResponse(c, 404, "User not found", utils.ErrGetData, nil)
+		return
+	} else if result.Error != nil {
+		c.Error(result.Error)
+		utils.SimpleResponse(c, 500, "Internal server error while get data", utils.ErrGetData, nil)
 		return
 	}
 
@@ -442,8 +503,8 @@ func VerifyEmail(c *gin.Context) {
 	}
 
 	// Update the user's email verification status in the database
-	err = queries.UpdateUesrEmailVerifyStatus(userID, true)
-	if err != nil {
+	result := queries.UpdateUserVerifyStatus(userID, true)
+	if result.Error != nil || result.RowsAffected == 0 {
 		c.Error(err)
 		utils.SimpleResponse(c, 500, "Internal server error while updating user email verification status", utils.ErrSaveData, nil)
 		return
@@ -484,12 +545,12 @@ func ResendVerificationEmail(c *gin.Context) {
 	userID := ContextUserID.(uint64)
 
 	// Retrieve user details from the database
-	user, err := queries.GetUserQueueByID(userID)
-	if err == mongo.ErrNoDocuments {
+	user, result := queries.GetUserQueueByID(userID)
+	if result.Error == gorm.ErrRecordNotFound {
 		utils.SimpleResponse(c, 404, "User not find", utils.ErrGetData, nil)
 		return
-	} else if err != nil {
-		c.Error(err)
+	} else if result.Error != nil {
+		c.Error(result.Error)
 		utils.SimpleResponse(c, 500, "Internal server error while fetching user", utils.ErrGetData, nil)
 		return
 	}

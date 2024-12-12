@@ -1,28 +1,29 @@
 package queries
 
 import (
-	"context"
-
 	"github.com/instructhub/backend/app/models"
-	"github.com/instructhub/backend/pkg/database"
-	"go.mongodb.org/mongo-driver/bson"
+	db "github.com/instructhub/backend/pkg/database"
+	"gorm.io/gorm"
 )
 
 // Create new course
-func CraeteNewCourse(course models.Course) error {
-	_, err := database.GetCollection("course").InsertOne(context.Background(), course)
-	return err
+func CreateNewCourse(course models.Course) *gorm.DB {
+	// Insert a new course into the database
+	result := db.GetDB().Create(&course)
+	return result
 }
 
-// Get course information
-func GetCourseInformation(courseID uint64) (models.Course, error) {
-	course := models.Course{}
-	err := database.GetCollection("course").FindOne(context.Background(), bson.M{"course_id": courseID}).Decode(&course)
-	return course, err
+// Get course information by courseID
+func GetCourseInformation(courseID uint64) (models.Course, *gorm.DB) {
+	var course models.Course
+	// Query the course based on courseID
+	result := db.GetDB().Where("id = ?", courseID).First(&course)
+	return course, result
 }
 
-// Create image
-func CraeteCourseImage(image models.CourseImage) error {
-	_, err := database.GetCollection("course_image").InsertOne(context.Background(), image)
-	return err
+// Create course image
+func CreateCourseImage(image models.CourseImage) *gorm.DB {
+	// Insert a new course image into the database
+	result := db.GetDB().Create(&image)
+	return result
 }

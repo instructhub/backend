@@ -1,15 +1,25 @@
 package models
 
-import "time"
+import (
+	"time"
 
-// Session type
+	db "github.com/instructhub/backend/pkg/database"
+)
+
+func init() {
+	db.GetDB().AutoMigrate(&Session{})
+}
+
+// Session type / table
 type Session struct {
-	SessionID uint64    `json:"session_id" bson:"session_id"`
-	SecretKey string    `json:"secret_key" bson:"secret_key"`
-	UserAgent string    `json:"user_agent" bson:"user_agent"`
-	UserID    uint64    `json:"user_id" bson:"user_id"`
-	ExpiresAt time.Time `json:"expires_at" bson:"expires_at"`
-	CreatedAt time.Time `json:"created_at" bson:"created_at"`
+	SessionID uint64    `json:"session_id" gorm:"primaryKey;autoIncrement"`
+	SecretKey string    `json:"secret_key" gorm:"unique;not null;uniqueIndex"`
+	UserAgent string    `json:"user_agent" gorm:"size:512"`
+	UserID    uint64    `json:"user_id" gorm:"not null;index"`
+	ExpiresAt time.Time `json:"expires_at" gorm:"not null"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+
+	User User `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
 }
 
 // Access token type

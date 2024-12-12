@@ -45,6 +45,7 @@ const (
 const (
 	ErrSaveData = "error_save_data"
 	ErrGetData  = "error_get_data"
+	ErrDeleteData = "error_delete_data"
 )
 
 // Internal errors

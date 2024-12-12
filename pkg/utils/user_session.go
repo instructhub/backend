@@ -10,7 +10,7 @@ import (
 	"github.com/instructhub/backend/app/models"
 	"github.com/instructhub/backend/app/queries"
 	"github.com/instructhub/backend/pkg/encryption"
-	"go.mongodb.org/mongo-driver/mongo"
+	"gorm.io/gorm"
 )
 
 var secret bool = false
@@ -30,27 +30,38 @@ func GenerateUserSession(c *gin.Context, userID uint64) error {
 		CreatedAt: time.Now(),
 	}
 
+	// Check if a session with the same secretKey already exists
 	for {
-		_, err = queries.GetSessionQueue(session.SecretKey)
-		if err == mongo.ErrNoDocuments {
+		_, result := queries.GetSessionQueueBySecretKey(session.SecretKey)
+		if result.Error == gorm.ErrRecordNotFound {
 			break
-		} else if err != nil {
-			fmt.Println(err.Error())
+		} else if result.Error != nil {
+			// Handle any other errors
+			fmt.Println(result.Error.Error())
+			return result.Error
+		}
+
+		secretKey, err = encryption.RandStringRunes(1024, true)
+		if err != nil {
 			return err
 		}
+		session.SecretKey = secretKey
 	}
 
-	err = queries.CreateSessionQueue(session)
-	if err != nil {
-		return err
+	// Create the new session in the database
+	result := queries.CreateSessionQueue(session)
+	if result.Error != nil {
+		return result.Error
 	}
 
+	// Generate the access token
 	accessTokenExpiresAt := time.Now().Add(time.Minute * time.Duration(CookieAccessTokenExpires))
 	accessToken, err := encryption.GenerateNewJwtToken(userID, []string{}, accessTokenExpiresAt)
 	if err != nil {
 		return err
 	}
 
+	// Set the cookies
 	c.SetCookie("refresh_token", session.SecretKey, CookieRefreshTokenExpires*24*60*60, "", "", secret, true)
 	c.SetCookie("access_token", accessToken, CookieAccessTokenExpires*60, "/", "", secret, false)
 
@@ -64,6 +75,5 @@ func init() {
 		secret = true
 	} else {
 		secret = false
-
 	}
 }

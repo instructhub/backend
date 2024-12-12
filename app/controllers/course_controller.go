@@ -16,13 +16,14 @@ import (
 	"github.com/instructhub/backend/app/queries"
 	"github.com/instructhub/backend/pkg/encryption"
 	gt "github.com/instructhub/backend/pkg/gitea"
-	"github.com/instructhub/backend/pkg/s3"
+	store "github.com/instructhub/backend/pkg/s3"
 	"github.com/instructhub/backend/pkg/utils"
+	"gorm.io/gorm"
 )
 
 func CreateNewCourse(c *gin.Context) {
 	type CreateCourseRequest struct {
-		Name       string `json:"name" binding:"required,max=50"`
+		Name        string `json:"name" binding:"required,max=50"`
 		Description string `json:"description" binding:"required,max=200"`
 	}
 
@@ -45,9 +46,9 @@ func CreateNewCourse(c *gin.Context) {
 	course := models.Course{
 		ID:          encryption.GenerateID(),
 		Creator:     userID,
-		Name:       request.Name,
+		Name:        request.Name,
 		Description: request.Description,
-		CreateAt:    time.Now(),
+		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
@@ -66,9 +67,9 @@ func CreateNewCourse(c *gin.Context) {
 		return
 	}
 
-	err = queries.CraeteNewCourse(course)
-	if err != nil {
-		c.Error(err)
+	result := queries.CreateNewCourse(course)
+	if result.Error != nil || result.RowsAffected == 0 {
+		c.Error(result.Error)
 		utils.SimpleResponse(c, 500, "Internal server error while save course to database", utils.ErrSaveData, nil)
 		return
 	}
@@ -97,9 +98,13 @@ func UploadImage(c *gin.Context) {
 
 	userID := userIDUntype.(uint64)
 
-	_, err = queries.GetCourseInformation(courseID)
-	if err != nil {
+	_, result := queries.GetCourseInformation(courseID)
+	if result.Error == gorm.ErrRecordNotFound {
 		utils.SimpleResponse(c, 400, "This course doesn't exist", utils.ErrCourseNotExist, nil)
+		return
+	} else if result.Error != nil {
+		c.Error(result.Error)
+		utils.SimpleResponse(c, 500, "Internal server error while get course data", utils.ErrGetData, nil)
 		return
 	}
 
@@ -169,16 +174,15 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	err = queries.CraeteCourseImage(models.CourseImage{
+	result = queries.CreateCourseImage(models.CourseImage{
 		ImageLink: filePath,
 		ID:        courseID,
-		Craetor:   userID,
+		Creator:   userID,
 		CreatedAt: time.Now(),
 	})
-
-	if err != nil {
+	if result.Error != nil || result.RowsAffected == 0 {
 		c.Error(err)
-		utils.SimpleResponse(c, 500, "Internal server error while upload to MongoDB", utils.ErrSaveData, nil)
+		utils.SimpleResponse(c, 500, "Internal server error while upload to database", utils.ErrSaveData, nil)
 		return
 	}
 

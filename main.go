@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/instructhub/backend/app/routes"
 	_ "github.com/instructhub/backend/pkg/cache"
+	_ "github.com/instructhub/backend/pkg/database"
 	"github.com/instructhub/backend/pkg/logger"
 	"github.com/instructhub/backend/pkg/middleware"
 	_ "github.com/instructhub/backend/pkg/oauth"

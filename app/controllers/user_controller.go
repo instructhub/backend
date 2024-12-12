@@ -6,6 +6,7 @@ import (
 	"github.com/instructhub/backend/app/queries"
 	"github.com/instructhub/backend/pkg/utils"
 	"github.com/jinzhu/copier"
+	"gorm.io/gorm"
 )
 
 func CheckLogin(c *gin.Context) {
@@ -21,21 +22,18 @@ func GetProfile(c *gin.Context) {
 
 	userID := jwtContextID.(uint64)
 
-	if _, err := queries.GetUserQueueByID(userID); err != nil {
+	user, result := queries.GetUserQueueByID(userID); 
+	if result.Error == gorm.ErrRecordNotFound {
 		utils.SimpleResponse(c, 403, "UserID error", utils.ErrGetData, nil)
 		return
-	}
-
-	user, err := queries.GetUserQueueByID(userID)
-
-	if err != nil {
-		c.Error(err)
+	} else if result.Error != nil {
+		c.Error(result.Error)
 		utils.SimpleResponse(c, 500, "Internal server error while get user data", utils.ErrGetData, nil)
 		return
 	}
 
 	var userProfile models.UserProfile
-	err = copier.Copy(&userProfile, &user)
+	err := copier.Copy(&userProfile, &user)
 	if err != nil {
 		c.Error(err)
 		utils.SimpleResponse(c, 500, "Internal server error while process image", utils.ErrChangeType, nil)
