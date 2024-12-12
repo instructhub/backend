@@ -18,7 +18,7 @@ type User struct {
 	Username    string    `json:"username" gorm:"unique" binding:"required"` // Unique
 	DisplayName string    `json:"display_name" binding:"required,max=50"`
 	Email       string    `json:"email" gorm:"unique" binding:"required,email"` // Unique
-	Password    string    `json:"password,omitempty"`                           // Hashed password, omit for OAuth users
+	Password    string   `json:"password,omitempty"`                           // Hashed password, omit for OAuth users
 	Verify      bool      `json:"verify"`
 	CreatedAt   time.Time `json:"created_at" gorm:"autoUpdateTime" binding:"required"`
 	UpdatedAt   time.Time `json:"updated_at" gorm:"autoCreateTime" binding:"required"`

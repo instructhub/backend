@@ -11,10 +11,10 @@ import (
 	"github.com/instructhub/backend/app/queries"
 	"github.com/instructhub/backend/pkg/cache"
 	"github.com/instructhub/backend/pkg/encryption"
+	"github.com/instructhub/backend/pkg/logger"
 	"github.com/instructhub/backend/pkg/utils"
 	"github.com/markbates/goth/gothic"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
@@ -164,13 +164,17 @@ func Login(c *gin.Context) {
 	var result *gorm.DB
 
 	user, result = queries.GetUserQueueByEmail(request.Email)
-
 	if result.Error == gorm.ErrRecordNotFound {
 		utils.SimpleResponse(c, 400, "Invalid email", utils.ErrInvalidUsernameOrEmail, nil)
 		return
 	} else if result.Error != nil {
 		c.Error(result.Error)
 		utils.SimpleResponse(c, 500, "Internal server error while check email", utils.ErrGetData, nil)
+		return
+	}
+
+	if user.Password == "" {
+		utils.SimpleResponse(c, 400, "Invalid password", utils.ErrInvalidPassword, nil)
 		return
 	}
 
@@ -249,7 +253,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	var user models.User
 	// Get user and associated OAuth providers by email
 	user, result := queries.GetUserAndProvider(request.Email)
-	if result.Error != nil && result.Error != mongo.ErrNoDocuments {
+	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
 		c.Error(result.Error)
 		utils.SimpleResponse(c, 500, "Internal server error while getting user", utils.ErrGetData, nil)
 		return
@@ -265,6 +269,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 
 	// If the user is found
 	if result.Error == nil {
+		logger.Log.Info("test")
 		// Iterate through associated OAuth providers
 		for _, p := range *user.OauthProviders {
 			// Skip to the next iteration if the provider doesn't match
@@ -337,20 +342,28 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		DisplayName: request.Name,
 		Username:    userIDString,
 		Email:       request.Email,
+		Verify:      true,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
 	// Check if the generated username already exists, and regenerate if needed
-	for {
+	for i := 0; i < 5; i++ {
 		_, result := queries.GetUserQueueByUsername(user.Username)
 		if result.Error == gorm.ErrRecordNotFound {
-			break
+			break // No conflict, break the loop
 		}
-		userID = encryption.GenerateID()
-		userIDString = strconv.FormatUint(uint64(userID), 10)
-		user.ID = userID
-		user.Username = userIDString
+		if i == 4 {
+			c.Error(fmt.Errorf("internal server error while generating username"))
+			utils.SimpleResponse(c, 500, "Internal server error while generating username", utils.ErrSaveData, nil)
+			return
+		}
+
+		// Generate a new user ID and username if a duplicate is found
+		userID = encryption.GenerateID()                      // Generate new user ID
+		userIDString = strconv.FormatUint(uint64(userID), 10) // Generate new username string
+		user.Username = userIDString                          // Update the username field
+		user.ID = userID                                      // Update the user ID field
 	}
 
 	// Create the new user in the database
