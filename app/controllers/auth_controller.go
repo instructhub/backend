@@ -374,6 +374,22 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		return
 	}
 
+	reseult := queries.AddUserProvider(models.OauthProvider{
+		ID:        encryption.GenerateID(),
+		UserID:    user.ID,
+		Provider:  provider,
+		OAuthID:   request.UserID,
+		UpdatedAt: time.Now(),
+		CreatedAt: time.Now(),
+	})
+	// Check if there was an error while adding the provider
+	if result.Error != nil || reseult.RowsAffected == 0 {
+		c.Error(result.Error)
+		utils.SimpleResponse(c, 500, "Internal server error while adding OAuth provider", utils.ErrSaveData, nil)
+		return
+	}
+
+
 	// Generate user session after successful user creation
 	err = utils.GenerateUserSession(c, user.ID)
 	if err != nil {
