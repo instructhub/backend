@@ -14,6 +14,6 @@ func Base64Decode(encodedData string) (string, error){
 }
 
 func Base64Encode(data string) string {
-	encodedDataWithoutPadding := base64.RawStdEncoding.EncodeToString([]byte(data))
-	return encodedDataWithoutPadding
+    encodedData := base64.StdEncoding.EncodeToString([]byte(data))
+    return encodedData
 }

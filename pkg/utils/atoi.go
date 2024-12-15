@@ -11,7 +11,11 @@ func Atoi(value string) int {
 	return num
 }
 
-func StringToUint64(str string) (uint64, error) {
+func StrToUint64(str string) (uint64, error) {
 	i, err := strconv.ParseInt(str, 10, 64)
 	return uint64(i), err
+}
+
+func Uint64ToStr(id uint64) string {
+	return strconv.FormatUint(id, 10)
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
-	"strconv"
 	"time"
 
 	"github.com/instructhub/backend/app/models"
@@ -260,10 +259,10 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 	}
 
 	// Convert the provider string to the corresponding enum value
-	provider, err := GetProviderFromString(request.Provider)
-	if err != nil {
-		c.Error(err)
-		utils.SimpleResponse(c, 500, "Internal server error while parsing provider", utils.ErrParseData, nil)
+	provider, ok := models.ParseStringToProviderType(request.Provider)
+	if !ok {
+		c.Error(fmt.Errorf("internal server error while parsing provider data"))
+		utils.SimpleResponse(c, 500, "Internal server error while parsing provider data", utils.ErrParseData, nil)
 		return
 	}
 
@@ -334,7 +333,7 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 
 	// Handle the case when the user is not found, and create a new user
 	userID := encryption.GenerateID()
-	userIDString := strconv.FormatUint(uint64(userID), 10)
+	userIDString := utils.Uint64ToStr(uint64(userID))
 	// New user creation process
 	user = models.User{
 		ID:          userID,
@@ -360,10 +359,10 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		}
 
 		// Generate a new user ID and username if a duplicate is found
-		userID = encryption.GenerateID()                      // Generate new user ID
-		userIDString = strconv.FormatUint(uint64(userID), 10) // Generate new username string
-		user.Username = userIDString                          // Update the username field
-		user.ID = userID                                      // Update the user ID field
+		userID = encryption.GenerateID()                 // Generate new user ID
+		userIDString = utils.Uint64ToStr(uint64(userID)) // Generate new username string
+		user.Username = userIDString                     // Update the username field
+		user.ID = userID                                 // Update the user ID field
 	}
 
 	// Create the new user in the database
@@ -388,7 +387,6 @@ func OAuthCallbackHandler(c *gin.Context, cprovider string) {
 		utils.SimpleResponse(c, 500, "Internal server error while adding OAuth provider", utils.ErrSaveData, nil)
 		return
 	}
-
 
 	// Generate user session after successful user creation
 	err = utils.GenerateUserSession(c, user.ID)
@@ -480,7 +478,7 @@ func CheckEmailVerify(c *gin.Context) {
 	}
 
 	// Convert userID from string to uint64
-	userID, err := utils.StringToUint64(c.Param("userID"))
+	userID, err := utils.StrToUint64(c.Param("userID"))
 	if err != nil {
 		c.Error(err)
 		utils.SimpleResponse(c, 500, "Internal server error while parse userid", utils.ErrParse, nil)
@@ -524,7 +522,7 @@ func VerifyEmail(c *gin.Context) {
 	}
 
 	// Convert userID from string to uint64
-	userID, err := utils.StringToUint64(userIDString)
+	userID, err := utils.StrToUint64(userIDString)
 	if err != nil {
 		c.Error(err)
 		utils.SimpleResponse(c, 500, "Internal server error while parsing user ID", utils.ErrParseFile, nil)

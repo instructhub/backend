@@ -1,6 +1,7 @@
 package models
 
 import (
+	"strings"
 	"time"
 
 	db "github.com/instructhub/backend/pkg/database"
@@ -33,6 +34,19 @@ const (
 	ProviderGithub
 	ProviderGitlab
 )
+
+var (
+    providerMap = map[string]Provider{
+        "google":   ProviderGoogle,
+        "github": ProviderGithub,
+        "gitlab": ProviderGitlab,
+    }
+)
+
+func ParseStringToProviderType(str string) (Provider, bool) {
+    c, ok := providerMap[strings.ToLower(str)]
+    return c, ok
+}
 
 // Oauth privder type / table
 type OauthProvider struct {

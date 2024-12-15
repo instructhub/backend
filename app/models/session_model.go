@@ -12,7 +12,7 @@ func init() {
 
 // Session type / table
 type Session struct {
-	SessionID uint64    `json:"session_id" gorm:"primaryKey;autoIncrement"`
+	SessionID uint64    `json:"session_id" gorm:"primaryKey"`
 	SecretKey string    `json:"secret_key" gorm:"unique;not null;uniqueIndex"`
 	UserAgent string    `json:"user_agent" gorm:"size:512"`
 	UserID    uint64    `json:"user_id" gorm:"not null;index"`

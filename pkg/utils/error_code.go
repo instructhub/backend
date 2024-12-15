@@ -34,6 +34,7 @@ const (
 	ErrInvalidImage         = "invalid_image"
 	ErrResetFilePointer     = "reset_file_pointer_failed"
 	ErrS3UploadFailed       = "s3_upload_failed"
+	ErrRivisionNotExist     = "revision_not_exist"
 )
 
 // public-releated errors
@@ -43,8 +44,8 @@ const (
 
 // Database errors
 const (
-	ErrSaveData = "error_save_data"
-	ErrGetData  = "error_get_data"
+	ErrSaveData   = "error_save_data"
+	ErrGetData    = "error_get_data"
 	ErrDeleteData = "error_delete_data"
 )
 
@@ -53,6 +54,7 @@ const (
 	ErrHashData        = "hash_data_failed"
 	ErrParseFile       = "template_parse_failed"
 	ErrParse           = "data_parse_failed"
+	ErrUnmarshal       = "data_unmarshal_failed"
 	ErrSendEmail       = "send_email_failed"
 	ErrGenerateSession = "generate_session_failed"
 	ErrParseData       = "parse_data_failed"

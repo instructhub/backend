@@ -11,5 +11,10 @@ func CourseRoute(r *gin.RouterGroup) {
 	course.Use(middleware.IsAuthorized())
 
 	course.POST("/new", controllers.CreateNewCourse)
+	// TODO: update metadata
+	// course.PUT("/metadata", controllers.CreateNewCourse)
+	course.POST("/revision/:courseID", controllers.UpdateCourseContent)
+	course.POST("/revision/:courseID/:revisionID/approve", controllers.ApproveRevision)
+
 	course.POST("/:courseID/image/upload", controllers.UploadImage)
 }

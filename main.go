@@ -56,5 +56,4 @@ func route(r *gin.RouterGroup) {
 	routes.AuthRoute(r)
 	routes.UserRoute(r)
 	routes.CourseRoute(r)
-	routes.PublicRouter(r)
 }

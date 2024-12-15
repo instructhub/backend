@@ -1,4 +1,4 @@
-package gt
+package git
 
 import (
 	"os"

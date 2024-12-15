@@ -3,8 +3,10 @@ package controllers
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +17,7 @@ import (
 	"github.com/instructhub/backend/app/models"
 	"github.com/instructhub/backend/app/queries"
 	"github.com/instructhub/backend/pkg/encryption"
-	gt "github.com/instructhub/backend/pkg/gitea"
+	git "github.com/instructhub/backend/pkg/gitea"
 	store "github.com/instructhub/backend/pkg/s3"
 	"github.com/instructhub/backend/pkg/utils"
 	"gorm.io/gorm"
@@ -37,6 +39,8 @@ func CreateNewCourse(c *gin.Context) {
 
 	userID := ContextUserID.(uint64)
 
+	userIDString := utils.Uint64ToStr(userID)
+
 	// Validate request body
 	if err := c.ShouldBindJSON(&request); err != nil {
 		utils.SimpleResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
@@ -53,17 +57,36 @@ func CreateNewCourse(c *gin.Context) {
 	}
 
 	repoOptions := gitea.CreateRepoOption{
-		Name:          strconv.FormatUint(uint64(course.ID), 10),
-		Description:   "Name:" + request.Name + " Description:" + request.Description,
+		Name:          utils.Uint64ToStr(uint64(course.ID)),
 		DefaultBranch: "en",
 		AutoInit:      true,
 		Private:       true,
 	}
 
-	_, _, err := gt.GiteaClient.CreateOrgRepo(utils.GiteaORGName, repoOptions)
+	repo, _, err := git.GiteaClient.CreateOrgRepo(utils.GiteaORGName, repoOptions)
 	if err != nil {
 		c.Error(err)
 		utils.SimpleResponse(c, 500, "Internal server error while create new course", utils.ErrCreateNewCourse, nil)
+		return
+	}
+
+	giteaFile := gitea.CreateFileOptions{
+		FileOptions: gitea.FileOptions{
+			Message: "init: Initialize the course",
+			Committer: gitea.Identity{
+				Name: userIDString,
+			},
+			Author: gitea.Identity{
+				Name: userIDString,
+			},
+		},
+		Content: encryption.Base64Encode(""),
+	}
+
+	_, _, err = git.GiteaClient.CreateFile(repo.Owner.UserName, repo.Name, "course_data.json", giteaFile)
+	if err != nil {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Error save course file", utils.ErrCreateNewCourse, nil)
 		return
 	}
 
@@ -75,6 +98,268 @@ func CreateNewCourse(c *gin.Context) {
 	}
 
 	utils.SimpleResponse(c, 201, "Successful create new course", nil, course)
+}
+
+// TODO: change all content to base64
+type CourseItemRequest struct {
+	ID       *uint64           `json:"id" binding:"omitempty,number"`
+	StageID  *uint64           `json:"stage_id,omitempty" binding:"omitempty,number"`
+	Position int               `json:"position" binding:"required"`
+	Type     models.CourseType `json:"type" binding:"number"`
+	Name     string            `json:"name" binding:"max=50"`
+	Updated  bool              `json:"updated"`
+	Content  *string           `json:"content,omitempty" binding:"omitempty,max=100000"`
+}
+
+type CourseStageRequest struct {
+	ID       *uint64 `json:"id" binding:"omitempty,number"`
+	Position int     `json:"position" binding:"required,number"`
+	Name     string  `json:"name" binding:"required,max=30"`
+
+	CourseItems []CourseItemRequest `json:"course_items" binding:"max=20,dive"`
+}
+
+type UpdateRequestCourse struct {
+	Stages      []CourseStageRequest `json:"stages" binding:"min=1,max=10,dive"`
+	Description string               `json:"description" binding:"required,max=100"`
+}
+
+// UpdateCourseContent handles course content updates
+func UpdateCourseContent(c *gin.Context) {
+	var request UpdateRequestCourse
+
+	// Validate request body
+	if err := c.ShouldBindJSON(&request); err != nil {
+		utils.SimpleResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
+		return
+	}
+
+	// Parse course ID and get user ID from context
+	courseID, err := strconv.ParseUint(c.Param("courseID"), 10, 64)
+	ContextUserID, exist := c.Get("userID")
+	if !exist || err != nil {
+		utils.SimpleResponse(c, 400, "Error getting userID", utils.ErrBadRequest, nil)
+		return
+	}
+	userID := ContextUserID.(uint64)
+	userIDString := utils.Uint64ToStr(userID)
+	// Sort stages and items by position
+	sort.Slice(request.Stages, func(i, j int) bool {
+		return request.Stages[i].Position < request.Stages[j].Position
+	})
+	for i := range request.Stages {
+		sort.Slice(request.Stages[i].CourseItems, func(x, y int) bool {
+			return request.Stages[i].CourseItems[x].Position < request.Stages[i].CourseItems[y].Position
+		})
+	}
+
+	// Fetch old course data
+	oldCourseData, result := queries.GetCourseWithDetails(courseID)
+	if result.Error == gorm.ErrRecordNotFound {
+		utils.SimpleResponse(c, 404, "Course not found", utils.ErrCourseNotExist, nil)
+		return
+	} else if result.Error != nil {
+		c.Error(result.Error)
+		utils.SimpleResponse(c, 500, "Internal server error while fetching course", utils.ErrGetData, nil)
+		return
+	}
+
+	if userID != oldCourseData.Creator {
+		utils.SimpleResponse(c, 403, "You are not the course creator, you cannot update it", utils.ErrUnauthorized, nil)
+		return
+	}
+
+	// Validate stage and item positions
+	for i, stage := range request.Stages {
+		if stage.Position != i+1 {
+			utils.SimpleResponse(c, 400, fmt.Sprintf("Invalid stage position at index %d, expected %d but got %d", i, i+1, stage.Position), utils.ErrBadRequest, nil)
+			return
+		}
+
+		for j, item := range stage.CourseItems {
+			if item.Position != j+1 {
+				utils.SimpleResponse(c, 400, fmt.Sprintf("Invalid item position at stage %d, item index %d, expected %d but got %d", stage.Position, j, j+1, item.Position), utils.ErrBadRequest, nil)
+				return
+			}
+		}
+	}
+
+	updateFiles := []git.File{}
+
+	// Map all new course items
+	newCourseItems := map[uint64]bool{}
+	for _, stage := range request.Stages {
+		for _, item := range stage.CourseItems {
+			if item.ID == nil {
+				continue
+			}
+			newCourseItems[*item.ID] = true
+		}
+	}
+
+	// Identify deleted items
+	for _, stage := range *oldCourseData.CourseStages {
+		for _, item := range *stage.CourseItems {
+			if !newCourseItems[item.ID] {
+				fmt.Println("test")
+				updateFiles = append(updateFiles, git.File{
+					Path:      utils.Uint64ToStr(item.ID),
+					Operation: git.OperationDelete,
+				})
+			}
+		}
+	}
+
+	courseData := request
+
+	// Assign IDs for new stages and items, and collect updates
+	for i, stage := range request.Stages {
+		if stage.ID == nil {
+			stageID := encryption.GenerateID()
+			stage.ID = &stageID
+			courseData.Stages[i].ID = &stageID
+		}
+
+		for j, item := range stage.CourseItems {
+			if item.ID == nil {
+				itemID := encryption.GenerateID()
+				item.ID = &itemID
+				courseData.Stages[i].CourseItems[j].ID = &itemID
+				courseData.Stages[i].CourseItems[j].Content = nil
+				updateFiles = append(updateFiles, git.File{
+					Path:      utils.Uint64ToStr(*item.ID),
+					Content:   encryption.Base64Encode(*item.Content),
+					Operation: git.OperationCreate,
+				})
+			} else if item.Updated {
+				updateFiles = append(updateFiles, git.File{
+					Path:      utils.Uint64ToStr(*item.ID),
+					Content:   encryption.Base64Encode(*item.Content),
+					Operation: git.OperationUpdate,
+				})
+			}
+		}
+	}
+	courseDataJson, err := json.Marshal(courseData)
+	if err != nil {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while parse json", utils.ErrParseData, nil)
+		return
+	}
+
+	// Add the JSON data as a new file or update existing file
+	updateFiles = append(updateFiles, git.File{
+		Path:      "course_data.json",
+		Content:   encryption.Base64Encode(string(courseDataJson)),
+		Operation: git.OperationUpdate,
+	})
+
+	identity := gitea.Identity{
+		Name:  userIDString,
+		Email: fmt.Sprintf("%s@instructhub.org", userIDString),
+	}
+
+	branchID := encryption.GenerateID()
+
+	modifyMultipleFilesData := git.ModifyRequest{
+		Author:    identity,
+		Committer: identity,
+		Files:     updateFiles,
+		Message:   request.Description,
+		NewBranch: utils.Uint64ToStr(branchID),
+	}
+
+	err = git.ModifyMultipleFiles(utils.GiteaORGName, utils.Uint64ToStr(courseID), modifyMultipleFilesData)
+	if err != nil {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error save data to git", utils.ErrSaveCourseFile, nil)
+		return
+	}
+
+	prOptions := gitea.CreatePullRequestOption{
+		Head:  utils.Uint64ToStr(branchID),
+		Base:  "en",
+		Title: request.Description,
+	}
+	pullRequest, _, err := git.GiteaClient.CreatePullRequest(utils.GiteaORGName, utils.Uint64ToStr(courseID), prOptions)
+	if err != nil {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error save data to git", utils.ErrSaveCourseFile, nil)
+		return
+	}
+
+	courseHistory := models.CourseRevision{
+		ID:            encryption.GenerateID(),
+		CourseID:      courseID,
+		BranchID:      branchID,
+		PullRequestID: int(pullRequest.ID),
+		Description:   request.Description,
+		EditorID:      &userID,
+		Status:        models.HistoryOpen,
+		UpdatedAt:     time.Now(),
+		CreatedAt:     time.Now(),
+	}
+
+	result = queries.CreateNewCourseHistory(courseHistory)
+	if result.Error != nil || result.RowsAffected == 0 {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error save history data", utils.ErrSaveData, nil)
+		return
+	}
+
+	utils.SimpleResponse(c, 201, "Successful create a new request", nil, nil)
+}
+
+func ApproveRevision(c *gin.Context) {
+	// Parse course ID and get user ID from context
+	courseID, err := utils.StrToUint64(c.Param("courseID"))
+	ContextUserID, exist := c.Get("userID")
+	if !exist || err != nil {
+		utils.SimpleResponse(c, 400, "Error getting userID", utils.ErrBadRequest, nil)
+		return
+	}
+
+	revisionID, err := utils.StrToUint64(c.Param("revisionID"))
+	if !exist || err != nil {
+		utils.SimpleResponse(c, 400, "Error getting revisionID", utils.ErrBadRequest, nil)
+		return
+	}
+
+	userID := ContextUserID.(uint64)
+	utils.Uint64ToStr(userID)
+	// Fetch old course data
+	revision, result := queries.GetCourseRevision(courseID, revisionID)
+	if result.Error == gorm.ErrRecordNotFound {
+		utils.SimpleResponse(c, 404, "Revision not found", utils.ErrCourseNotExist, nil)
+		return
+	} else if result.Error != nil {
+		c.Error(result.Error)
+		utils.SimpleResponse(c, 500, "Internal server error while fetching revision", utils.ErrGetData, nil)
+		return
+	}
+
+	revisionChangeFile, _, err := git.GiteaClient.GetContents(utils.GiteaORGName, utils.Uint64ToStr(revision.CourseID), utils.Uint64ToStr(revision.BranchID), "/course_data.json")
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	revisionChangeDataString, err := encryption.Base64Decode(*revisionChangeFile.Content)
+	if err != nil {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while fetching course data", utils.ErrGetData, nil)
+		return
+	}
+
+	var updateRequest UpdateRequestCourse
+
+	err = json.Unmarshal([]byte(revisionChangeDataString), &updateRequest)
+	if err != nil {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while unmarshal data ", utils.ErrUnmarshal, nil)
+		return
+	}
+
+	utils.SimpleResponse(c, 200, "Successful approve this revision", nil, updateRequest)
 }
 
 func UploadImage(c *gin.Context) {
