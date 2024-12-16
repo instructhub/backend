@@ -31,7 +31,11 @@ func CreateCourseImage(image models.CourseImage) *gorm.DB {
 func GetCourseWithDetails(courseID uint64) (models.Course, *gorm.DB) {
 	var course models.Course
 
-	result := db.GetDB().Model(&models.Course{ID: courseID}).Preload("CourseStages.CourseItems").First(&course)
+	result := db.GetDB().
+		Model(&models.Course{ID: courseID}).
+		Preload("CourseStages", "active = ?", true).
+		Preload("CourseStages.CourseItems", "active = ?", true).
+		First(&course)
 	return course, result
 }
 
@@ -65,12 +69,21 @@ func CreateNewCourseHistory(revision models.CourseRevision) *gorm.DB {
 	return result
 }
 
+// Get course revision
 func GetCourseRevision(courseID uint64, revisionID uint64) (models.CourseRevision, *gorm.DB) {
 	var courseRevision models.CourseRevision
 
-	result := db.GetDB().Model(&models.CourseRevision{ID: revisionID, CourseID: courseID}).
+	result := db.GetDB().Model(&models.CourseRevision{}).
+		Where("id = ? AND course_id = ?", revisionID, courseID).
 		Preload("Course").
-		Preload("Course.CourseStages.CourseItems").
+		Preload("Course.CourseStages", "active = ?", true).
+		Preload("Course.CourseStages.CourseItems", "active = ?", true).
 		First(&courseRevision)
 	return courseRevision, result
+}
+
+// Update course revision
+func UpdateCourseRevision(revision models.CourseRevision) *gorm.DB {
+	result := db.GetDB().Save(&revision)
+	return result
 }

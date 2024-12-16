@@ -34,7 +34,9 @@ const (
 	ErrInvalidImage         = "invalid_image"
 	ErrResetFilePointer     = "reset_file_pointer_failed"
 	ErrS3UploadFailed       = "s3_upload_failed"
-	ErrRivisionNotExist     = "revision_not_exist"
+
+	ErrRivisionNotExist = "revision_not_exist"
+	ErrAlreadyMerged    = "revision_already_merged"
 )
 
 // public-releated errors

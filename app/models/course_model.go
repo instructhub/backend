@@ -24,7 +24,7 @@ type Course struct {
 	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
 
-	CourseStages *[]CourseStage `gorm:"foreignKey:CourseID"`
+	CourseStages *[]CourseStage `json:"course_stages,omitempty" gorm:"foreignKey:CourseID"`
 }
 
 // CourseStage type / table
@@ -35,11 +35,11 @@ type CourseStage struct {
 	Name      string    `json:"name" gorm:"not null;size:255"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
-	Active    bool      `json:"active"`
+	Active    *bool     `json:"active" gorm:"default:true"`
 
 	// Foreign key
-	Course      Course        `gorm:"foreignKey:CourseID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
-	CourseItems *[]CourseItem `gorm:"foreignKey:StageID"`
+	Course      *Course        `json:"course,omitempty" gorm:"foreignKey:CourseID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
+	CourseItems *[]CourseItem `json:"course_items,omitempty" gorm:"foreignKey:StageID"`
 }
 
 type CourseType int8
@@ -70,12 +70,12 @@ type CourseItem struct {
 	Position  int        `json:"position"`
 	Type      CourseType `json:"type" gorm:"not null"`
 	Name      string     `json:"name" gorm:"not null;size:255"`
-	Active    bool       `json:"active"`
+	Active    *bool      `json:"active" gorm:"default:true"`
 	UpdatedAt time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
 	CreatedAt time.Time  `json:"created_at" gorm:"autoCreateTime"`
 
 	// Foreign key
-	Stage CourseStage `gorm:"foreignKey:StageID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
+	Stage *CourseStage `json:"stage,omitempty" gorm:"foreignKey:StageID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
 }
 
 // CourseImage type / table
@@ -86,27 +86,29 @@ type CourseImage struct {
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
 
-type HistoryStatus int8
+type RevisionStatus int8
 
 const (
-	HistoryOpen HistoryStatus = iota
-	HistoryClose
-	HistoryMerged
+	RevisionOpen RevisionStatus = iota
+	RevisionClose
+	RevisionMerged
 	// No one can leave comment or update anything
-	HistoryLock
+	RevisionLock
 )
 
 type CourseRevision struct {
-	ID            uint64        `json:"id" gorm:"primaryKey"`
-	CourseID      uint64        `json:"course_id" gorm:"not null;index"`
-	BranchID      uint64        `json:"branch_id"`
-	PullRequestID int           `json:"pull_request_id"`
-	Description   string        `json:"description"`
-	Status        HistoryStatus `json:"status"`
-	EditorID      *uint64       `json:"editor_id" gorm:"index"`
-	UpdatedAt     time.Time     `json:"updated_at" gorm:"autoUpdateTime"`
-	CreatedAt     time.Time     `json:"created_at" gorm:"autoCreateTime"`
+	ID            uint64         `json:"id" gorm:"primaryKey"`
+	CourseID      uint64         `json:"course_id" gorm:"not null;index"`
+	BranchID      uint64         `json:"branch_id"`
+	PullRequestID int            `json:"pull_request_id"`
+	Description   string         `json:"description"`
+	Status        RevisionStatus `json:"status"`
+	EditorID      uint64        `json:"editor_id" gorm:"index"`
+	ApproverID    *uint64         `json:"approver_id" gorm:"index"`
+	UpdatedAt     time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
+	CreatedAt     time.Time      `json:"created_at" gorm:"autoCreateTime"`
 
-	Course Course `gorm:"foreignKey:CourseID;references:ID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
-	User   User   `gorm:"foreignKey:EditorID;references:ID;constraint:OnDelete:SET NULL"`
+	Course   *Course `json:"course,omitempty" gorm:"foreignKey:CourseID;references:ID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
+	Editor   *User   `json:"editor,omitempty" gorm:"foreignKey:EditorID;references:ID;constraint:OnDelete:SET NULL"`
+	Approver *User   `json:"approver,omitempty" gorm:"foreignKey:ApproverID;references:ID;constraint:OnDelete:SET NULL"`
 }

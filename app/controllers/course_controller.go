@@ -107,7 +107,7 @@ type CourseItemRequest struct {
 	Position int               `json:"position" binding:"required"`
 	Type     models.CourseType `json:"type" binding:"number"`
 	Name     string            `json:"name" binding:"max=50"`
-	Updated  bool              `json:"updated"`
+	Updated  *bool             `json:"updated" binding:"omitempty"`
 	Content  *string           `json:"content,omitempty" binding:"omitempty,max=100000"`
 }
 
@@ -200,8 +200,7 @@ func UpdateCourseContent(c *gin.Context) {
 	// Identify deleted items
 	for _, stage := range *oldCourseData.CourseStages {
 		for _, item := range *stage.CourseItems {
-			if !newCourseItems[item.ID] {
-				fmt.Println("test")
+			if _, ok := newCourseItems[item.ID]; !ok {
 				updateFiles = append(updateFiles, git.File{
 					Path:      utils.Uint64ToStr(item.ID),
 					Operation: git.OperationDelete,
@@ -221,17 +220,18 @@ func UpdateCourseContent(c *gin.Context) {
 		}
 
 		for j, item := range stage.CourseItems {
+			courseData.Stages[i].CourseItems[j].Content = nil
+			courseData.Stages[i].CourseItems[j].Updated = nil
 			if item.ID == nil {
 				itemID := encryption.GenerateID()
 				item.ID = &itemID
 				courseData.Stages[i].CourseItems[j].ID = &itemID
-				courseData.Stages[i].CourseItems[j].Content = nil
 				updateFiles = append(updateFiles, git.File{
 					Path:      utils.Uint64ToStr(*item.ID),
 					Content:   encryption.Base64Encode(*item.Content),
 					Operation: git.OperationCreate,
 				})
-			} else if item.Updated {
+			} else if *item.Updated {
 				updateFiles = append(updateFiles, git.File{
 					Path:      utils.Uint64ToStr(*item.ID),
 					Content:   encryption.Base64Encode(*item.Content),
@@ -240,6 +240,7 @@ func UpdateCourseContent(c *gin.Context) {
 			}
 		}
 	}
+
 	courseDataJson, err := json.Marshal(courseData)
 	if err != nil {
 		c.Error(err)
@@ -294,8 +295,8 @@ func UpdateCourseContent(c *gin.Context) {
 		BranchID:      branchID,
 		PullRequestID: int(pullRequest.ID),
 		Description:   request.Description,
-		EditorID:      &userID,
-		Status:        models.HistoryOpen,
+		EditorID:      userID,
+		Status:        models.RevisionOpen,
 		UpdatedAt:     time.Now(),
 		CreatedAt:     time.Now(),
 	}
@@ -307,9 +308,10 @@ func UpdateCourseContent(c *gin.Context) {
 		return
 	}
 
-	utils.SimpleResponse(c, 201, "Successful create a new request", nil, nil)
+	utils.SimpleResponse(c, 201, "Successful create a new request", nil, courseHistory)
 }
 
+// TODO: Check user premission does they have permission to approve
 func ApproveRevision(c *gin.Context) {
 	// Parse course ID and get user ID from context
 	courseID, err := utils.StrToUint64(c.Param("courseID"))
@@ -338,9 +340,16 @@ func ApproveRevision(c *gin.Context) {
 		return
 	}
 
+	if revision.Status == models.RevisionMerged {
+		utils.SimpleResponse(c, 400, "Failed approve revision, this revision already been merged", utils.ErrAlreadyMerged, nil)
+		return
+	}
+
 	revisionChangeFile, _, err := git.GiteaClient.GetContents(utils.GiteaORGName, utils.Uint64ToStr(revision.CourseID), utils.Uint64ToStr(revision.BranchID), "/course_data.json")
 	if err != nil {
-		fmt.Println(err.Error())
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while fetching course data", utils.ErrGetData, nil)
+		return
 	}
 
 	revisionChangeDataString, err := encryption.Base64Decode(*revisionChangeFile.Content)
@@ -356,6 +365,137 @@ func ApproveRevision(c *gin.Context) {
 	if err != nil {
 		c.Error(err)
 		utils.SimpleResponse(c, 500, "Internal server error while unmarshal data ", utils.ErrUnmarshal, nil)
+		return
+	}
+
+	oldCourseStages := map[uint64]models.CourseStage{}
+	oldCourseItems := map[uint64]models.CourseItem{}
+	newCourseStages := map[uint64]CourseStageRequest{}
+	newCourseItems := map[uint64]CourseItemRequest{}
+	
+	needUpdateStages := []models.CourseStage{}
+	needUpdateItems := []models.CourseItem{}
+	needCreateStages := []models.CourseStage{}
+	needCreateItems := []models.CourseItem{}
+	for _, stage := range *revision.Course.CourseStages {
+		oldCourseStages[stage.ID] = stage
+		for _, item := range *stage.CourseItems {
+			oldCourseItems[item.ID] = item
+		}
+	}
+
+	// Map new update all item and stage and check if there is any item or stage need to be create
+	for _, stage := range updateRequest.Stages {
+		newCourseStages[*stage.ID] = stage
+		if _, ok := oldCourseStages[*stage.ID]; !ok {
+			createStage := models.CourseStage{
+				ID:        *stage.ID,
+				CourseID:  courseID,
+				Position:  stage.Position,
+				Name:      stage.Name,
+				UpdatedAt: time.Now(),
+				CreatedAt: time.Now(),
+				Active:    utils.BoolPtr(true),
+			}
+			needCreateStages = append(needCreateStages, createStage)
+		}
+
+		for _, item := range stage.CourseItems {
+			newCourseItems[*item.ID] = item
+			if _, ok := oldCourseItems[*item.ID]; !ok {
+				createItem := models.CourseItem{
+					ID:        *item.ID,
+					StageID:   *stage.ID,
+					Position:  item.Position,
+					Name:      item.Name,
+					Type:      item.Type,
+					Active:    utils.BoolPtr(true),
+					UpdatedAt: time.Now(),
+					CreatedAt: time.Now(),
+				}
+				needCreateItems = append(needCreateItems, createItem)
+			}
+		}
+	}
+
+	// Check is there have any stage or item need to be update or delete
+	for i := range *revision.Course.CourseStages {
+		stage := &(*revision.Course.CourseStages)[i]
+		if newStage, ok := newCourseStages[stage.ID]; !ok {
+			// Delete
+			stage.Active = utils.BoolPtr(false)
+			needUpdateStages = append(needUpdateStages, *stage)
+		} else if newStage.Position != stage.Position || newStage.Name != stage.Name {
+			stage.Position = newStage.Position
+			stage.Name = newStage.Name
+			stage.UpdatedAt = time.Now()
+			needUpdateStages = append(needUpdateStages, *stage)
+		}
+
+		for j := range *stage.CourseItems {
+			item := &(*stage.CourseItems)[j]
+			if newItem, ok := newCourseItems[item.ID]; !ok {
+				// Delete
+				item.Active = utils.BoolPtr(false)
+				needUpdateItems = append(needUpdateItems, *item)
+			} else if item.Name != newItem.Name || item.Position != newItem.Position {
+				item.Position = newItem.Position
+				item.Name = newItem.Name
+				item.UpdatedAt = time.Now()
+				needUpdateItems = append(needUpdateItems, *item)
+			}
+		}
+	}
+
+	for _, stage := range needUpdateStages {
+		result = queries.UpdateCourseStage(stage)
+		if result.Error != nil || result.RowsAffected == 0 {
+			c.Error(err)
+			utils.SimpleResponse(c, 500, "Internal server error while update stage data", utils.ErrSaveData, nil)
+			return
+		}
+	}
+	utils.SimpleResponse(c,200,"no",nil,needUpdateItems)
+	for _, item := range needUpdateItems {
+		fmt.Println(item.ID,item.Active)
+		result = queries.UpdateCourseItem(item)
+		if result.Error != nil || result.RowsAffected == 0 {
+			c.Error(err)
+			utils.SimpleResponse(c, 500, "Internal server error while update item data", utils.ErrSaveData, nil)
+			return
+		}
+	}
+
+	result = queries.CreateCourseStages(needCreateStages)
+	if result.Error != nil || result.RowsAffected == 0 {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while craete stage data", utils.ErrSaveData, nil)
+		return
+	}
+
+	result = queries.CreateCourseItems(needCreateItems)
+	if result.Error != nil || result.RowsAffected == 0 {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while craete item data", utils.ErrSaveData, nil)
+		return
+	}
+
+	revision.UpdatedAt = time.Now()
+	revision.Status = models.RevisionMerged
+	result = queries.UpdateCourseRevision(revision)
+	if result.Error != nil || result.RowsAffected == 0 {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while update revision data", utils.ErrSaveData, nil)
+		return
+	}
+
+	mergeOptions := gitea.MergePullRequestOption{
+		Style: "merge",
+	}
+	_, _, err = git.GiteaClient.MergePullRequest(utils.GiteaORGName, utils.Uint64ToStr(courseID), int64(revision.PullRequestID), mergeOptions)
+	if err != nil {
+		c.Error(err)
+		utils.SimpleResponse(c, 500, "Internal server error while merge two branch", utils.ErrSaveData, nil)
 		return
 	}
 
