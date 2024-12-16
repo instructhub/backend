@@ -2,19 +2,19 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/instructhub/backend/app/controllers"
+	courses "github.com/instructhub/backend/app/controllers/course"
 	"github.com/instructhub/backend/pkg/middleware"
 )
 
 func CourseRoute(r *gin.RouterGroup) {
-	course := r.Group("/courses")
-	course.Use(middleware.IsAuthorized())
+	g := r.Group("/courses")
+	g.Use(middleware.IsAuthorized())
 
-	course.POST("/new", controllers.CreateNewCourse)
+	g.POST("/new", courses.CreateNewCourse)
 	// TODO: update metadata
 	// course.PUT("/metadata", controllers.CreateNewCourse)
-	course.POST("/revision/:courseID", controllers.UpdateCourseContent)
-	course.POST("/revision/:courseID/:revisionID/approve", controllers.ApproveRevision)
+	g.POST("/revision/:courseID", courses.CreateNewRevision)
+	g.POST("/revision/:courseID/:revisionID/approve", courses.ApproveRevision)
 
-	course.POST("/:courseID/image/upload", controllers.UploadImage)
+	g.POST("/:courseID/image/upload", courses.UploadImage)
 }

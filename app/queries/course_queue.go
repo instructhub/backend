@@ -28,15 +28,20 @@ func CreateCourseImage(image models.CourseImage) *gorm.DB {
 	return result
 }
 
-func GetCourseWithDetails(courseID uint64) (models.Course, *gorm.DB) {
-	var course models.Course
+// Reusable active filter function
+func activeFilter(db *gorm.DB) *gorm.DB {
+    return db.Where("active = ?", true)
+}
 
-	result := db.GetDB().
-		Model(&models.Course{ID: courseID}).
-		Preload("CourseStages", "active = ?", true).
-		Preload("CourseStages.CourseItems", "active = ?", true).
-		First(&course)
-	return course, result
+func GetCourseWithDetails(courseID uint64) (models.Course, *gorm.DB) {
+    var course models.Course
+
+    result := db.GetDB().
+        Preload("CourseStages", activeFilter).
+        Preload("CourseStages.CourseItems", activeFilter).
+        First(&course, courseID)
+
+    return course, result
 }
 
 // Create course stages
@@ -63,23 +68,26 @@ func UpdateCourseItem(item models.CourseItem) *gorm.DB {
 	return result
 }
 
-// Craete course history
-func CreateNewCourseHistory(revision models.CourseRevision) *gorm.DB {
+// Craete course revision
+func CreateNewCourseRevision(revision models.CourseRevision) *gorm.DB {
 	result := db.GetDB().Create(&revision)
 	return result
 }
 
-// Get course revision
+// Get course revision with JOINs
 func GetCourseRevision(courseID uint64, revisionID uint64) (models.CourseRevision, *gorm.DB) {
-	var courseRevision models.CourseRevision
+    var courseRevision models.CourseRevision
 
-	result := db.GetDB().Model(&models.CourseRevision{}).
-		Where("id = ? AND course_id = ?", revisionID, courseID).
-		Preload("Course").
-		Preload("Course.CourseStages", "active = ?", true).
-		Preload("Course.CourseStages.CourseItems", "active = ?", true).
-		First(&courseRevision)
-	return courseRevision, result
+    // Use JOIN to fetch course revision with related course stages and course items
+    result := db.GetDB().
+        Preload("Course").
+        Preload("Course.CourseStages", activeFilter).
+        Preload("Course.CourseStages.CourseItems", activeFilter).
+        Where("course_id = ?", courseID).
+        Where("id = ?", revisionID).
+        First(&courseRevision)
+
+    return courseRevision, result
 }
 
 // Update course revision

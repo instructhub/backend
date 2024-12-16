@@ -16,6 +16,7 @@ var (
 	BackendURL               string
 	FrontendURl              string
 	GiteaORGName             string
+	GiteaCommitEmail         string
 )
 
 // Init some usefil variables
@@ -25,6 +26,7 @@ func init() {
 	CookieAccessTokenExpires = Atoi(os.Getenv("COOKIE_ACCESS_TOKEN_EXPIRES"))
 	BackendURL = fmt.Sprintf("%s/api/v%s", os.Getenv("BASE_URL"), os.Getenv("VERSION"))
 	FrontendURl = os.Getenv("BASE_URL")
+	GiteaCommitEmail = os.Getenv("GITEA_COMMIT_EMAIL")
 }
 
 // Magic bytes for different image formats
