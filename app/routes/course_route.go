@@ -8,8 +8,11 @@ import (
 
 func CourseRoute(r *gin.RouterGroup) {
 	g := r.Group("/courses")
-	g.Use(middleware.IsAuthorized())
 
+	g.GET("/:courseID", courses.GetCourse)
+	g.GET("/:courseID/:itemID", courses.GetItemContent)
+
+	g.Use(middleware.IsAuthorized())
 	g.POST("/new", courses.CreateNewCourse)
 	// TODO: update metadata
 	// course.PUT("/metadata", controllers.CreateNewCourse)

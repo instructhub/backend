@@ -34,6 +34,13 @@ func IsAuthorized() gin.HandlerFunc {
 		}
 		userID := uint64(userIDFloat)
 
+		_, ok = claims["pedding"].(bool)
+		if ok {
+			utils.SimpleResponse(c, 403, "Please verify email first", utils.ErrUnauthorized, nil)
+			c.Abort()
+			return
+		}
+
 		// Add the user ID to the request context for further use
 		c.Set("userID", userID)
 		c.Next()
