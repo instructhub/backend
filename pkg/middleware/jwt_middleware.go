@@ -12,7 +12,7 @@ func IsAuthorized() gin.HandlerFunc {
 		// Retrieve the JWT token from the cookie
 		cookie, err := c.Request.Cookie("access_token")
 		if err != nil || cookie.Value == "" {
-			utils.SimpleResponse(c, 403, "Authorization token is empty.", "authentication_key_not_found", nil)
+			utils.FullyResponse(c, 403, "Authorization token is empty.", "authentication_key_not_found", nil)
 			c.Abort()
 			return
 		}
@@ -20,7 +20,7 @@ func IsAuthorized() gin.HandlerFunc {
 		// Parse and validate the JWT token
 		claims, err := encryption.ParseAndValidateJWT(cookie.Value)
 		if err != nil {
-			utils.SimpleResponse(c, 403, err.Error(), utils.ErrUnauthorized, nil)
+			utils.FullyResponse(c, 403, err.Error(), utils.ErrUnauthorized, nil)
 			c.Abort()
 			return
 		}
@@ -28,7 +28,7 @@ func IsAuthorized() gin.HandlerFunc {
 		// Retrieve the user ID (subject) from the claims
 		userIDFloat, ok := claims["sub"].(float64)
 		if !ok {
-			utils.SimpleResponse(c, 403, "UserID error", utils.ErrUnauthorized, nil)
+			utils.FullyResponse(c, 403, "UserID error", utils.ErrUnauthorized, nil)
 			c.Abort()
 			return
 		}
@@ -36,7 +36,7 @@ func IsAuthorized() gin.HandlerFunc {
 
 		_, ok = claims["pedding"].(bool)
 		if ok {
-			utils.SimpleResponse(c, 403, "Please verify email first", utils.ErrUnauthorized, nil)
+			utils.FullyResponse(c, 403, "Please verify email first", utils.ErrUnauthorized, nil)
 			c.Abort()
 			return
 		}

@@ -17,8 +17,8 @@ func init() {
 
 // Course type / table
 type Course struct {
-	ID          uint64    `json:"id" gorm:"primaryKey"`
-	Creator     uint64    `json:"creator" gorm:"not null"`
+	ID          uint64    `json:"id,string" gorm:"primaryKey"`
+	CreatorID   uint64    `json:"creator_id,string" gorm:"not null"`
 	Name        string    `json:"name" gorm:"not null;size:255"`
 	Description string    `json:"description" gorm:"type:text"`
 	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
@@ -29,8 +29,8 @@ type Course struct {
 
 // CourseStage type / table
 type CourseStage struct {
-	ID        uint64    `json:"id" gorm:"primaryKey"`
-	CourseID  uint64    `json:"course_id" gorm:"not null;index"`
+	ID        uint64    `json:"id,string" gorm:"primaryKey"`
+	CourseID  uint64    `json:"course_id,string" gorm:"not null;index"`
 	Position  int       `json:"position"`
 	Name      string    `json:"name" gorm:"not null;size:255"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
@@ -38,7 +38,7 @@ type CourseStage struct {
 	Active    *bool     `json:"active" gorm:"default:true"`
 
 	// Foreign key
-	Course      *Course        `json:"course,omitempty" gorm:"foreignKey:CourseID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
+	Course      *Course       `json:"course,omitempty" gorm:"foreignKey:CourseID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
 	CourseItems *[]CourseItem `json:"course_items,omitempty" gorm:"foreignKey:StageID"`
 }
 
@@ -65,8 +65,8 @@ func ParseStringToCourseType(str string) (CourseType, bool) {
 
 // CourseItem type / table
 type CourseItem struct {
-	ID        uint64     `json:"id" gorm:"primaryKey"`
-	StageID   uint64     `json:"stage_id" gorm:"not null;index"`
+	ID        uint64     `json:"id,string" gorm:"primaryKey"`
+	StageID   uint64     `json:"stage_id,string" gorm:"not null;index"`
 	Position  int        `json:"position"`
 	Type      CourseType `json:"type" gorm:"not null"`
 	Name      string     `json:"name" gorm:"not null;size:255"`
@@ -80,9 +80,9 @@ type CourseItem struct {
 
 // CourseImage type / table
 type CourseImage struct {
-	ID        uint64    `json:"id" gorm:"primaryKey"`
+	ID        uint64    `json:"id,string" gorm:"primaryKey"`
 	ImageLink string    `json:"image_link" gorm:"not null;size:512"`
-	Creator   uint64    `json:"creator" gorm:"not null"`
+	CreatorID uint64    `json:"creator_id,string" gorm:"not null"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
 
@@ -97,14 +97,14 @@ const (
 )
 
 type CourseRevision struct {
-	ID            uint64         `json:"id" gorm:"primaryKey"`
-	CourseID      uint64         `json:"course_id" gorm:"not null;index"`
-	BranchID      uint64         `json:"branch_id"`
+	ID            uint64         `json:"id,string" gorm:"primaryKey"`
+	CourseID      uint64         `json:"course_id,string" gorm:"not null;index"`
+	BranchID      uint64         `json:"branch_id,string"`
 	PullRequestID int            `json:"pull_request_id"`
 	Description   string         `json:"description"`
 	Status        RevisionStatus `json:"status"`
-	EditorID      uint64        `json:"editor_id" gorm:"index"`
-	ApproverID    *uint64         `json:"approver_id" gorm:"index"`
+	EditorID      uint64         `json:"editor_id,string" gorm:"index"`
+	ApproverID    *uint64        `json:"approver_id,string" gorm:"index"`
 	UpdatedAt     time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 	CreatedAt     time.Time      `json:"created_at" gorm:"autoCreateTime"`
 

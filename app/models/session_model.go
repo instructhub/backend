@@ -12,10 +12,10 @@ func init() {
 
 // Session type / table
 type Session struct {
-	SessionID uint64    `json:"session_id" gorm:"primaryKey"`
+	SessionID uint64    `json:"session_id,string" gorm:"primaryKey"`
 	SecretKey string    `json:"secret_key" gorm:"unique;not null;uniqueIndex"`
 	UserAgent string    `json:"user_agent" gorm:"size:512"`
-	UserID    uint64    `json:"user_id" gorm:"not null;index"`
+	UserID    uint64    `json:"user_id,string" gorm:"not null;index"`
 	ExpiresAt time.Time `json:"expires_at" gorm:"not null"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 

@@ -28,27 +28,27 @@ func Signup(c *gin.Context) {
 
 	// Validate request body
 	if err := c.ShouldBindJSON(&request); err != nil {
-		handleError(c, 400, "Invalid request", utils.ErrBadRequest, err)
+		utils.FullyResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
 		return
 	}
 
 	// Check if email already been used
 	_, result := queries.GetUserQueueByEmail(request.Email)
 	if result.Error == nil {
-		handleError(c, 400, "Email already been used", utils.ErrEmailAlreadyUsed, nil)
+		utils.FullyResponse(c, 400, "Email already been used", utils.ErrEmailAlreadyUsed, nil)
 		return
 	} else if result.Error != gorm.ErrRecordNotFound {
-		handleError(c, 500, "Internal server error while checking email", utils.ErrGetData, result.Error)
+		utils.ServerErrorResponse(c, 500, "Error checking email", utils.ErrGetData, result.Error)
 		return
 	}
 
 	// Check if username already been used
 	_, result = queries.GetUserQueueByUsername(request.Username)
 	if result.Error == nil {
-		handleError(c, 400, "Username already been used", utils.ErrUsernameAlreadyUsed, nil)
+		utils.FullyResponse(c, 400, "Username already been used", utils.ErrUsernameAlreadyUsed, nil)
 		return
 	} else if result.Error != gorm.ErrRecordNotFound {
-		handleError(c, 500, "Internal server error while checking username", utils.ErrGetData, result.Error)
+		utils.ServerErrorResponse(c, 500, "Error checking username", utils.ErrGetData, result.Error)
 		return
 	}
 
@@ -67,7 +67,7 @@ func Signup(c *gin.Context) {
 	// Hash password
 	hashedPassword, err := hashUserPassword(user.Password)
 	if err != nil {
-		handleError(c, 500, "Internal server error while hashing password", utils.ErrHashData, err)
+		utils.ServerErrorResponse(c, 500, "Error hashing password", utils.ErrHashData, err)
 		return
 	}
 	user.Password = hashedPassword
@@ -75,45 +75,38 @@ func Signup(c *gin.Context) {
 	// Generate verification token
 	verifyToken, err := encryption.GenerateRandomBase64String(512)
 	if err != nil {
-		handleError(c, 500, "Internal server error while generating verification token", utils.ErrHashData, err)
+		utils.ServerErrorResponse(c, 500, "Error generating verification token", utils.ErrHashData, err)
 		return
 	}
 
 	// Send verification email
 	if err := sendVerificationEmail(user.Email, user.Username, verifyToken); err != nil {
-		handleError(c, 500, "Internal server error while sending verification email", utils.ErrSendEmail, err)
+		utils.ServerErrorResponse(c, 500, "Error sending verification email", utils.ErrSendEmail, err)
 		return
 	}
 
 	// Store the verification token in Redis
 	if err := cache.RedisClient.Set(c, verifyToken, user.ID, 15*time.Minute).Err(); err != nil {
-		handleError(c, 500, "Internal server error while storing verification key", utils.ErrSaveData, err)
+		utils.ServerErrorResponse(c, 500, "Error storing verification key", utils.ErrSaveData, err)
 		return
 	}
 
 	// Create user in the queue
 	result = queries.CreateUserQueue(user)
 	if result.Error != nil || result.RowsAffected == 0 {
-		handleError(c, 500, "Internal server error while creating new user", utils.ErrSaveData, result.Error)
+		utils.ServerErrorResponse(c, 500, "Error creating new user", utils.ErrSaveData, result.Error)
 		return
 	}
 
 	// Set a verify pending JWT cookie
 	verifyPeddingToken, err := generateEmailVerifyJWT(user.ID)
 	if err != nil {
-		handleError(c, 500, "Internal server error while generating verify pending token", utils.ErrGenerateToken, err)
+		utils.ServerErrorResponse(c, 500, "Error generating verify pending token", utils.ErrGenerateToken, err)
 		return
 	}
 	c.SetCookie("verify_pedding", verifyPeddingToken, 15*60, "/", "", false, false)
 
-	utils.SimpleResponse(c, 200, "Signup successful, please verify email", nil, nil)
-}
-
-func handleError(c *gin.Context, statusCode int, message string, errCode string, err error) {
-	if err != nil {
-		c.Error(err)
-	}
-	utils.SimpleResponse(c, statusCode, message, errCode, err.Error())
+	utils.FullyResponse(c, 200, "Signup successful, please verify email", nil, nil)
 }
 
 func hashUserPassword(password string) (string, error) {

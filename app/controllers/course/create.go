@@ -24,14 +24,14 @@ func CreateNewCourse(c *gin.Context) {
 	// Retrieve user ID from context
 	userID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
-		utils.SimpleResponse(c, 400, "Error getting userID", utils.ErrBadRequest, err.Error())
+		utils.FullyResponse(c, 400, "Error getting userID", utils.ErrBadRequest, err.Error())
 		return
 	}
 
 	// Bind and validate request body
 	var request createCourseRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		utils.SimpleResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
+		utils.FullyResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
 		return
 	}
 
@@ -42,33 +42,33 @@ func CreateNewCourse(c *gin.Context) {
 	repo, err := createCourseRepo(course)
 	if err != nil {
 		c.Error(err)
-		utils.SimpleResponse(c, 500, "Internal server error while creating new course repo", utils.ErrCreateNewCourse, nil)
+		utils.FullyResponse(c, 500, "Error creating new course repo", utils.ErrCreateNewCourse, nil)
 		return
 	}
 
 	// Create course data file in the repository
 	if err := createCourseFile(repo, userID); err != nil {
 		c.Error(err)
-		utils.SimpleResponse(c, 500, "Error saving course file", utils.ErrCreateNewCourse, nil)
+		utils.FullyResponse(c, 500, "Error saving course file", utils.ErrCreateNewCourse, nil)
 		return
 	}
 
 	// Save the course information to the database
 	if err := saveCourseToDatabase(course); err != nil {
 		c.Error(err)
-		utils.SimpleResponse(c, 500, "Internal server error while saving course", utils.ErrSaveData, nil)
+		utils.FullyResponse(c, 500, "Error saving course", utils.ErrSaveData, nil)
 		return
 	}
 
 	// Return success response
-	utils.SimpleResponse(c, 201, "Successfully created new course", nil, course)
+	utils.FullyResponse(c, 201, "Successfully created new course", nil, course)
 }
 
 // createCourse creates a new course object with the provided user ID and request.
 func createCourse(userID uint64, request createCourseRequest) models.Course {
 	return models.Course{
 		ID:          encryption.GenerateID(),
-		Creator:     userID,
+		CreatorID:   userID,
 		Name:        request.Name,
 		Description: request.Description,
 		CreatedAt:   time.Now(),
@@ -94,7 +94,7 @@ func createCourseFile(repo *gitea.Repository, userID uint64) error {
 		FileOptions: gitea.FileOptions{
 			Message: "init: Initialize the course",
 			Committer: gitea.Identity{
-				Name: utils.Uint64ToStr(userID),
+				Name:  utils.Uint64ToStr(userID),
 				Email: git.GenerateCommmitEmail(userID),
 			},
 			Author: gitea.Identity{

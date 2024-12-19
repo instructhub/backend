@@ -17,8 +17,8 @@ import (
 )
 
 type CourseItemRequest struct {
-	ID       *uint64           `json:"id" binding:"omitempty,number"`
-	StageID  *uint64           `json:"stage_id,omitempty" binding:"omitempty,number"`
+	ID       *string           `json:"id" binding:"omitempty,number"`
+	StageID  *string           `json:"stage_id,omitempty" binding:"omitempty,number"`
 	Position int               `json:"position" binding:"required"`
 	Type     models.CourseType `json:"type" binding:"number"`
 	Name     string            `json:"name" binding:"max=50"`
@@ -27,7 +27,7 @@ type CourseItemRequest struct {
 }
 
 type CourseStageRequest struct {
-	ID       *uint64 `json:"id" binding:"omitempty,number"`
+	ID       *string `json:"id" binding:"omitempty,number"`
 	Position int     `json:"position" binding:"required,number"`
 	Name     string  `json:"name" binding:"required,max=30"`
 
@@ -45,14 +45,14 @@ func CreateNewRevision(c *gin.Context) {
 
 	// Validate request body
 	if err := c.ShouldBindJSON(&request); err != nil {
-		utils.SimpleResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
+		utils.FullyResponse(c, 400, "Invalid request", utils.ErrBadRequest, err.Error())
 		return
 	}
 
 	// Parse course ID and get user ID from context
 	courseID, userID, err := getCourseIDAndUserID(c)
 	if err != nil {
-		utils.SimpleResponse(c, 400, "Error getting course or user ID", utils.ErrBadRequest, err.Error())
+		utils.FullyResponse(c, 400, "Error getting course or user ID", utils.ErrBadRequest, err.Error())
 		return
 	}
 
@@ -62,49 +62,49 @@ func CreateNewRevision(c *gin.Context) {
 	// Fetch old course data
 	oldCourseData, result := queries.GetCourseWithDetails(courseID)
 	if result.RowsAffected == 0 {
-		utils.SimpleResponse(c, 404, "Course not exist", utils.ErrCourseNotExist, nil)
+		utils.FullyResponse(c, 404, "Course not exist", utils.ErrCourseNotExist, nil)
 		return
 	} else if result.Error != nil {
 		c.Error(result.Error)
-		utils.SimpleResponse(c, 500, "Error fetching course", utils.ErrGetData, nil)
+		utils.FullyResponse(c, 500, "Error fetching course", utils.ErrGetData, nil)
 		return
 	}
 
 	// Validate stage and item positions
 	if err := validatePositions(request.Stages); err != nil {
-		utils.SimpleResponse(c, 400, err.Error(), utils.ErrBadRequest, nil)
+		utils.FullyResponse(c, 400, err.Error(), utils.ErrBadRequest, nil)
 		return
 	}
 
 	// Process updates for course items
 	request, updateFiles, err := processCourseItems(request, oldCourseData)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Error processing course items", utils.ErrSaveCourseFile, nil)
+		utils.FullyResponse(c, 500, "Error processing course items", utils.ErrSaveCourseFile, nil)
 		return
 	}
 
 	// Prepare and encode course data
 	courseDataJson, err := encodeCourseData(request)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Error encoding course data", utils.ErrParseData, nil)
+		utils.FullyResponse(c, 500, "Error encoding course data", utils.ErrParseData, nil)
 		return
 	}
 
 	// Add or update course data in git
 	courseRevision, err := updateCourseInGit(courseID, updateFiles, request.Description, courseDataJson, userID)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Error updating course in git", utils.ErrSaveCourseFile, nil)
+		utils.FullyResponse(c, 500, "Error updating course in git", utils.ErrSaveCourseFile, nil)
 		return
 	}
 
 	// Create a course revision revision
 	err = createCourseRevision(*courseRevision)
 	if err != nil {
-		utils.SimpleResponse(c, 500, "Error creating course revision", utils.ErrSaveData, nil)
+		utils.FullyResponse(c, 500, "Error creating course revision", utils.ErrSaveData, nil)
 		return
 	}
 
-	utils.SimpleResponse(c, 201, "Successfully created a new revision request", nil, courseRevision)
+	utils.FullyResponse(c, 201, "Successfully created a new revision request", nil, courseRevision)
 }
 
 // getCourseIDAndUserID retrieves the course ID from the URL parameters and the user ID from the context
@@ -152,7 +152,7 @@ func validatePositions(stages []CourseStageRequest) error {
 // processCourseItems processes course items, identifies new and deleted items, and prepares update files
 func processCourseItems(request UpdateRequestCourse, oldCourseData models.Course) (UpdateRequestCourse, []git.File, error) {
 	updateFiles := []git.File{}
-	newCourseItems := make(map[uint64]bool)
+	newCourseItems := make(map[string]bool)
 
 	// Identify new and updated items
 	for _, stage := range request.Stages {
@@ -167,7 +167,7 @@ func processCourseItems(request UpdateRequestCourse, oldCourseData models.Course
 	// Identify deleted items
 	for _, stage := range *oldCourseData.CourseStages {
 		for _, item := range *stage.CourseItems {
-			if _, exists := newCourseItems[item.ID]; !exists {
+			if _, exists := newCourseItems[utils.Uint64ToStr(item.ID)]; !exists {
 				updateFiles = append(updateFiles, git.File{
 					Path:      utils.Uint64ToStr(item.ID),
 					Operation: git.OperationDelete,
@@ -176,27 +176,28 @@ func processCourseItems(request UpdateRequestCourse, oldCourseData models.Course
 		}
 	}
 
+	// FIXME: Need to check if the id really new
 	// Process new and updated course items
 	for i := range request.Stages {
 		stage := &request.Stages[i]
 		if stage.ID == nil {
 			stageID := encryption.GenerateID()
-			stage.ID = &stageID
+			stage.ID = utils.Uint64ToStrPtr(stageID)
 		}
 
 		for j := range stage.CourseItems {
 			item := &stage.CourseItems[j]
 			if item.ID == nil {
 				itemID := encryption.GenerateID()
-				item.ID = &itemID
+				item.ID = utils.Uint64ToStrPtr(itemID)
 				updateFiles = append(updateFiles, git.File{
-					Path:      utils.Uint64ToStr(*item.ID),
+					Path:      *item.ID,
 					Content:   encryption.Base64Encode(*item.Content),
 					Operation: git.OperationCreate,
 				})
-			} else if *item.Updated {
+			} else if item.Updated != nil && *item.Updated {
 				updateFiles = append(updateFiles, git.File{
-					Path:      utils.Uint64ToStr(*item.ID),
+					Path:      *item.ID,
 					Content:   encryption.Base64Encode(*item.Content),
 					Operation: git.OperationUpdate,
 				})

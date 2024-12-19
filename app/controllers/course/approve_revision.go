@@ -20,30 +20,30 @@ import (
 func ApproveRevision(c *gin.Context) {
 	courseID, _, revisionID, err := parseIDs(c)
 	if err != nil {
-		utils.SimpleResponse(c, 400, "Invalid course or revision ID", utils.ErrBadRequest, err.Error())
+		utils.FullyResponse(c, 400, "Invalid course or revision ID", utils.ErrBadRequest, err.Error())
 		return
 	}
 
 	// Fetch revision details
 	revision, result := queries.GetCourseRevision(courseID, revisionID)
 	if result.Error == gorm.ErrRecordNotFound {
-		utils.SimpleResponse(c, 404, "Revision not found", utils.ErrCourseNotExist, nil)
+		utils.FullyResponse(c, 404, "Revision not found", utils.ErrCourseNotExist, nil)
 		return
 	} else if result.Error != nil {
-		utils.ErrorResponse(c, 500, "Error fetching course data", utils.ErrGetData, err,)
+		utils.ServerErrorResponse(c, 500, "Error fetching course data", utils.ErrGetData, err)
 		return
 	}
 
 	// Ensure revision is not already merged
 	if revision.Status == models.RevisionMerged {
-		utils.SimpleResponse(c, 400, "Revision already merged", utils.ErrAlreadyMerged, nil)
+		utils.FullyResponse(c, 400, "Revision already merged", utils.ErrAlreadyMerged, nil)
 		return
 	}
 
 	// Fetch course data from git
 	revisionData, err := fetchCourseDataFromGit(revision)
 	if err != nil {
-		utils.ErrorResponse(c, 500, "Error fetching course data", utils.ErrGetData, err)
+		utils.ServerErrorResponse(c, 500, "Error fetching course data", utils.ErrGetData, err)
 		return
 	}
 
@@ -51,7 +51,7 @@ func ApproveRevision(c *gin.Context) {
 	var updateRequest UpdateRequestCourse
 	err = json.Unmarshal([]byte(revisionData), &updateRequest)
 	if err != nil {
-		utils.ErrorResponse(c, 500, "Error unmarshaling data", utils.ErrUnmarshal, err)
+		utils.ServerErrorResponse(c, 500, "Error unmarshaling data", utils.ErrUnmarshal, err)
 		return
 	}
 
@@ -61,37 +61,37 @@ func ApproveRevision(c *gin.Context) {
 	// Update stages and items in the database
 	err = updateCourseStages(needUpdateStages)
 	if err != nil {
-		utils.ErrorResponse(c, 500, "Error updating stage data", utils.ErrSaveData, err)
+		utils.ServerErrorResponse(c, 500, "Error updating stage data", utils.ErrSaveData, err)
 		return
 	}
 
 	err = updateCourseItems(needUpdateItems)
 	if err != nil {
-		utils.ErrorResponse(c, 500, "Error updating item data", utils.ErrSaveData, err)
+		utils.ServerErrorResponse(c, 500, "Error updating item data", utils.ErrSaveData, err)
 		return
 	}
 
 	// Create new stages and items
 	err = createCourseStages(needCreateStages)
 	if err != nil {
-		utils.ErrorResponse(c, 500, "Error creating new stage data", utils.ErrSaveData, err)
+		utils.ServerErrorResponse(c, 500, "Error creating new stage data", utils.ErrSaveData, err)
 		return
 	}
 
 	err = createCourseItems(needCreateItems)
 	if err != nil {
-		utils.ErrorResponse(c, 500, "Error creating new item data", utils.ErrSaveData, err)
+		utils.ServerErrorResponse(c, 500, "Error creating new item data", utils.ErrSaveData, err)
 		return
 	}
 
 	// Update revision status and merge the pull request
 	err = mergeRevisionAndPullRequest(revision, courseID)
 	if err != nil {
-		utils.ErrorResponse(c, 500, "Error merging revision and pull request", utils.ErrSaveData, nil)
+		utils.ServerErrorResponse(c, 500, "Error merging revision and pull request", utils.ErrSaveData, nil)
 		return
 	}
 
-	utils.SimpleResponse(c, 200, "Revision successfully approved", nil, updateRequest)
+	utils.FullyResponse(c, 200, "Revision successfully approved", nil, updateRequest)
 }
 
 // parseIDs extracts courseID, userID, and revisionID from context and validates them
@@ -134,10 +134,10 @@ func fetchCourseDataFromGit(revision models.CourseRevision) (string, error) {
 func prepareCourseData(courseID uint64, revision models.CourseRevision, updateRequest UpdateRequestCourse) (
 	[]models.CourseStage, []models.CourseItem, []models.CourseStage, []models.CourseItem) {
 
-	oldCourseStages := map[uint64]models.CourseStage{}
-	oldCourseItems := map[uint64]models.CourseItem{}
-	newCourseStages := map[uint64]CourseStageRequest{}
-	newCourseItems := map[uint64]CourseItemRequest{}
+	oldCourseStages := map[string]models.CourseStage{}
+	oldCourseItems := map[string]models.CourseItem{}
+	newCourseStages := map[string]CourseStageRequest{}
+	newCourseItems := map[string]CourseItemRequest{}
 
 	needUpdateStages := []models.CourseStage{}
 	needUpdateItems := []models.CourseItem{}
@@ -146,9 +146,9 @@ func prepareCourseData(courseID uint64, revision models.CourseRevision, updateRe
 
 	// Populate old data
 	for _, stage := range *revision.Course.CourseStages {
-		oldCourseStages[stage.ID] = stage
+		oldCourseStages[utils.Uint64ToStr(stage.ID)] = stage
 		for _, item := range *stage.CourseItems {
-			oldCourseItems[item.ID] = item
+			oldCourseItems[utils.Uint64ToStr(item.ID)] = item
 		}
 	}
 
@@ -157,7 +157,7 @@ func prepareCourseData(courseID uint64, revision models.CourseRevision, updateRe
 		newCourseStages[*stage.ID] = stage
 		if _, ok := oldCourseStages[*stage.ID]; !ok {
 			createStage := models.CourseStage{
-				ID:        *stage.ID,
+				ID:        utils.StrToUint64NoError(*stage.ID),
 				CourseID:  courseID,
 				Position:  stage.Position,
 				Name:      stage.Name,
@@ -172,8 +172,8 @@ func prepareCourseData(courseID uint64, revision models.CourseRevision, updateRe
 			newCourseItems[*item.ID] = item
 			if _, ok := oldCourseItems[*item.ID]; !ok {
 				createItem := models.CourseItem{
-					ID:        *item.ID,
-					StageID:   *stage.ID,
+					ID:        utils.StrToUint64NoError(*item.ID),
+					StageID:   utils.StrToUint64NoError(*stage.ID),
 					Position:  item.Position,
 					Name:      item.Name,
 					Type:      item.Type,
@@ -189,7 +189,7 @@ func prepareCourseData(courseID uint64, revision models.CourseRevision, updateRe
 	// Identify stages and items to update or delete
 	for i := range *revision.Course.CourseStages {
 		stage := &(*revision.Course.CourseStages)[i]
-		if newStage, ok := newCourseStages[stage.ID]; !ok {
+		if newStage, ok := newCourseStages[utils.Uint64ToStr(stage.ID)]; !ok {
 			// Mark for deletion
 			stage.Active = utils.BoolPtr(false)
 			needUpdateStages = append(needUpdateStages, *stage)
@@ -203,7 +203,7 @@ func prepareCourseData(courseID uint64, revision models.CourseRevision, updateRe
 
 		for j := range *stage.CourseItems {
 			item := &(*stage.CourseItems)[j]
-			if newItem, ok := newCourseItems[item.ID]; !ok {
+			if newItem, ok := newCourseItems[utils.Uint64ToStr(item.ID)]; !ok {
 				// Mark for deletion
 				item.Active = utils.BoolPtr(false)
 				needUpdateItems = append(needUpdateItems, *item)
@@ -244,6 +244,9 @@ func updateCourseItems(needUpdateItems []models.CourseItem) error {
 
 // createCourseStages creates new course stages in the database
 func createCourseStages(needCreateStages []models.CourseStage) error {
+	if len(needCreateStages) == 0 {
+		return nil
+	}
 	result := queries.CreateCourseStages(needCreateStages)
 	if result.Error != nil || result.RowsAffected == 0 {
 		return fmt.Errorf("failed to create stage data")
@@ -253,6 +256,9 @@ func createCourseStages(needCreateStages []models.CourseStage) error {
 
 // createCourseItems creates new course items in the database
 func createCourseItems(needCreateItems []models.CourseItem) error {
+	if len(needCreateItems) == 0 {
+		return nil
+	}
 	result := queries.CreateCourseItems(needCreateItems)
 	if result.Error != nil || result.RowsAffected == 0 {
 		return fmt.Errorf("failed to create item data")

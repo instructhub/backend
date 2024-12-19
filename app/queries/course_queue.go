@@ -33,12 +33,16 @@ func activeFilter(db *gorm.DB) *gorm.DB {
     return db.Where("active = ?", true)
 }
 
+func orderByPosition(db *gorm.DB) *gorm.DB {
+    return db.Order("position")
+}
+
 func GetCourseWithDetails(courseID uint64) (models.Course, *gorm.DB) {
     var course models.Course
 
     result := db.GetDB().
-        Preload("CourseStages", activeFilter).
-        Preload("CourseStages.CourseItems", activeFilter).
+        Preload("CourseStages", activeFilter, orderByPosition).
+        Preload("CourseStages.CourseItems", activeFilter, orderByPosition).
         First(&course, courseID)
 
     return course, result

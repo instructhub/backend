@@ -14,7 +14,7 @@ func init() {
 
 // Users data type / table
 type User struct {
-	ID          uint64    `json:"id" gorm:"primaryKey" binding:"required"`
+	ID          uint64    `json:"id,string" gorm:"primaryKey" binding:"required"`
 	Avatar      *string   `json:"avatar,omitempty"`
 	Username    string    `json:"username" gorm:"unique" binding:"required"` // Unique
 	DisplayName string    `json:"display_name" binding:"required,max=50"`
@@ -50,8 +50,8 @@ func ParseStringToProviderType(str string) (Provider, bool) {
 
 // Oauth privder type / table
 type OauthProvider struct {
-	ID        uint64    `json:"id" gorm:"primaryKey"`
-	UserID    uint64    `json:"user_id" gorm:"not null;index"`
+	ID        uint64    `json:"id,string" gorm:"primaryKey"`
+	UserID    uint64    `json:"user_id,string" gorm:"not null;index"`
 	Provider  Provider  `json:"provider" gorm:"not null"`
 	OAuthID   string    `json:"oauth_id" gorm:"unique;not null"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
@@ -63,7 +63,7 @@ type OauthProvider struct {
 
 // User data for user when it need to know thier personal profile
 type UserProfile struct {
-	ID        uint64    `json:"id" binding:"required"`
+	ID        uint64    `json:"id,string" binding:"required"`
 	Avatar    string    `json:"avatar,omitempty"`
 	Username  string    `json:"username" binding:"required"`
 	Email     string    `json:"email" binding:"required,email"`
