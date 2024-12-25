@@ -23,7 +23,7 @@ type CourseItemRequest struct {
 	Type     models.CourseType `json:"type" binding:"number"`
 	Name     string            `json:"name" binding:"max=50"`
 	Updated  *bool             `json:"updated,omitempty" binding:"omitempty"`
-	Content  *string           `json:"content,omitempty" binding:"omitempty,max=100000"`
+	Content  *string           `json:"content,omitempty" binding:"omitempty,base64,max=100000"`
 }
 
 type CourseStageRequest struct {
