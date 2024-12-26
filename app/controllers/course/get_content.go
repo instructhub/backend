@@ -6,26 +6,26 @@ import (
 	"github.com/instructhub/backend/pkg/utils"
 )
 
-// GetItemContent handles get ccourse items content data
-func GetItemContent(c *gin.Context) {
-	// Parse course ID and item ID
+// GetStepContent handles get ccourse steps content data
+func GetStepContent(c *gin.Context) {
+	// Parse course ID and step ID
 	courseID, err := utils.StrToUint64(c.Param("courseID"))
 	if err != nil {
 		utils.FullyResponse(c, 400, "Error getting course ID", utils.ErrBadRequest, nil)
 		return
 	}
 
-	itemID, err := utils.StrToUint64(c.Param("itemID"))
+	stepID, err := utils.StrToUint64(c.Param("stepID"))
 	if err != nil {
-		utils.FullyResponse(c, 400, "Error getting item ID", utils.ErrBadRequest, nil)
+		utils.FullyResponse(c, 400, "Error getting step ID", utils.ErrBadRequest, nil)
 		return
 	}
 
-	itemContent, _, err := git.GiteaClient.GetContents(utils.GiteaORGName, utils.Uint64ToStr(courseID), "", utils.Uint64ToStr(itemID))
+	stepContent, _, err := git.GiteaClient.GetContents(utils.GiteaORGName, utils.Uint64ToStr(courseID), "", utils.Uint64ToStr(stepID))
 	if err != nil {
-		utils.FullyResponse(c, 404, "Course or item not exist", utils.ErrCourseNotExist, nil)
+		utils.FullyResponse(c, 404, "Course or step not exist", utils.ErrCourseNotExist, nil)
 		return
 	}
 
-	utils.FullyResponse(c, 200, "Successfully get course item content", nil, itemContent.Content)
+	utils.FullyResponse(c, 200, "Successfully get course step content", nil, stepContent.Content)
 }

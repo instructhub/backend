@@ -10,7 +10,7 @@ func CourseRoute(r *gin.RouterGroup) {
 	g := r.Group("/courses")
 
 	g.GET("/:courseID", courses.GetCourse)
-	g.GET("/:courseID/:itemID", courses.GetItemContent)
+	g.GET("/:courseID/:stepID", courses.GetStepContent)
 
 	g.Use(middleware.IsAuthorized())
 	g.POST("/new", courses.CreateNewCourse)

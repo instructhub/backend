@@ -6,7 +6,7 @@ import (
 	"github.com/instructhub/backend/pkg/utils"
 )
 
-// GetCourse handles get ccourse data (only stage and item no item content)
+// GetCourse handles get ccourse data (only module and step no step content)
 func GetCourse(c *gin.Context) {
 	// Parse course ID
 	courseID, err := utils.StrToUint64(c.Param("courseID"))

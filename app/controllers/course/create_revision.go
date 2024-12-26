@@ -16,9 +16,9 @@ import (
 	"github.com/instructhub/backend/pkg/utils"
 )
 
-type CourseItemRequest struct {
+type CourseStepRequest struct {
 	ID       *string           `json:"id" binding:"omitempty,number"`
-	StageID  *string           `json:"stage_id,omitempty" binding:"omitempty,number"`
+	ModuleID *string           `json:"module_id,omitempty" binding:"omitempty,number"`
 	Position int               `json:"position" binding:"required"`
 	Type     models.CourseType `json:"type" binding:"number"`
 	Name     string            `json:"name" binding:"max=50"`
@@ -26,17 +26,17 @@ type CourseItemRequest struct {
 	Content  *string           `json:"content,omitempty" binding:"omitempty,base64,max=100000"`
 }
 
-type CourseStageRequest struct {
+type CourseModuleRequest struct {
 	ID       *string `json:"id" binding:"omitempty,number"`
 	Position int     `json:"position" binding:"required,number"`
 	Name     string  `json:"name" binding:"required,max=30"`
 
-	CourseItems []CourseItemRequest `json:"course_items" binding:"max=20,dive"`
+	CourseSteps []CourseStepRequest `json:"course_steps" binding:"max=20,dive"`
 }
 
 type UpdateRequestCourse struct {
-	Stages      []CourseStageRequest `json:"stages" binding:"min=1,max=10,dive"`
-	Description string               `json:"description" binding:"required,max=100"`
+	Modules     []CourseModuleRequest `json:"modules" binding:"min=1,max=10,dive"`
+	Description string                `json:"description" binding:"required,max=100"`
 }
 
 // CreateNewRevision handles course content updates
@@ -56,8 +56,8 @@ func CreateNewRevision(c *gin.Context) {
 		return
 	}
 
-	// Sort stages and items by position
-	sortStagesAndItems(&request)
+	// Sort modules and steps by position
+	sortModulesAndSteps(&request)
 
 	// Fetch old course data
 	oldCourseData, result := queries.GetCourseWithDetails(courseID)
@@ -70,16 +70,16 @@ func CreateNewRevision(c *gin.Context) {
 		return
 	}
 
-	// Validate stage and item positions
-	if err := validatePositions(request.Stages); err != nil {
+	// Validate module and step positions
+	if err := validatePositions(request.Modules); err != nil {
 		utils.FullyResponse(c, 400, err.Error(), utils.ErrBadRequest, nil)
 		return
 	}
 
-	// Process updates for course items
-	request, updateFiles, err := processCourseItems(request, oldCourseData)
+	// Process updates for course steps
+	request, updateFiles, err := processCourseSteps(request, oldCourseData)
 	if err != nil {
-		utils.FullyResponse(c, 500, "Error processing course items", utils.ErrSaveCourseFile, nil)
+		utils.FullyResponse(c, 500, "Error processing course steps", utils.ErrSaveCourseFile, nil)
 		return
 	}
 
@@ -122,54 +122,54 @@ func getCourseIDAndUserID(c *gin.Context) (uint64, uint64, error) {
 	return courseID, userID, nil
 }
 
-// sortStagesAndItems sorts the stages and course items by position
-func sortStagesAndItems(request *UpdateRequestCourse) {
-	sort.Slice(request.Stages, func(i, j int) bool {
-		return request.Stages[i].Position < request.Stages[j].Position
+// sortModulesAndSteps sorts the modules and course steps by position
+func sortModulesAndSteps(request *UpdateRequestCourse) {
+	sort.Slice(request.Modules, func(i, j int) bool {
+		return request.Modules[i].Position < request.Modules[j].Position
 	})
-	for i := range request.Stages {
-		sort.Slice(request.Stages[i].CourseItems, func(x, y int) bool {
-			return request.Stages[i].CourseItems[x].Position < request.Stages[i].CourseItems[y].Position
+	for i := range request.Modules {
+		sort.Slice(request.Modules[i].CourseSteps, func(x, y int) bool {
+			return request.Modules[i].CourseSteps[x].Position < request.Modules[i].CourseSteps[y].Position
 		})
 	}
 }
 
-// validatePositions ensures that stage and item positions are correctly ordered
-func validatePositions(stages []CourseStageRequest) error {
-	for i, stage := range stages {
-		if stage.Position != i+1 {
-			return fmt.Errorf("invalid stage position at index %d, expected %d but got %d", i, i+1, stage.Position)
+// validatePositions ensures that module and step positions are correctly ordered
+func validatePositions(modules []CourseModuleRequest) error {
+	for i, module := range modules {
+		if module.Position != i+1 {
+			return fmt.Errorf("invalid module position at index %d, expected %d but got %d", i, i+1, module.Position)
 		}
-		for j, item := range stage.CourseItems {
-			if item.Position != j+1 {
-				return fmt.Errorf("invalid item position at stage %d, item index %d, expected %d but got %d", stage.Position, j, j+1, item.Position)
+		for j, step := range module.CourseSteps {
+			if step.Position != j+1 {
+				return fmt.Errorf("invalid step position at module %d, step index %d, expected %d but got %d", module.Position, j, j+1, step.Position)
 			}
 		}
 	}
 	return nil
 }
 
-// processCourseItems processes course items, identifies new and deleted items, and prepares update files
-func processCourseItems(request UpdateRequestCourse, oldCourseData models.Course) (UpdateRequestCourse, []git.File, error) {
+// processCourseSteps processes course steps, identifies new and deleted steps, and prepares update files
+func processCourseSteps(request UpdateRequestCourse, oldCourseData models.Course) (UpdateRequestCourse, []git.File, error) {
 	updateFiles := []git.File{}
-	newCourseItems := make(map[string]bool)
+	newCourseSteps := make(map[string]bool)
 
-	// Identify new and updated items
-	for _, stage := range request.Stages {
-		for _, item := range stage.CourseItems {
-			if item.ID == nil {
+	// Identify new and updated steps
+	for _, module := range request.Modules {
+		for _, step := range module.CourseSteps {
+			if step.ID == nil {
 				continue
 			}
-			newCourseItems[*item.ID] = true
+			newCourseSteps[*step.ID] = true
 		}
 	}
 
-	// Identify deleted items
-	for _, stage := range *oldCourseData.CourseStages {
-		for _, item := range *stage.CourseItems {
-			if _, exists := newCourseItems[utils.Uint64ToStr(item.ID)]; !exists {
+	// Identify deleted steps
+	for _, module := range *oldCourseData.CourseModules {
+		for _, step := range *module.CourseSteps {
+			if _, exists := newCourseSteps[utils.Uint64ToStr(step.ID)]; !exists {
 				updateFiles = append(updateFiles, git.File{
-					Path:      utils.Uint64ToStr(item.ID),
+					Path:      utils.Uint64ToStr(step.ID),
 					Operation: git.OperationDelete,
 				})
 			}
@@ -177,33 +177,33 @@ func processCourseItems(request UpdateRequestCourse, oldCourseData models.Course
 	}
 
 	// FIXME: Need to check if the id really new
-	// Process new and updated course items
-	for i := range request.Stages {
-		stage := &request.Stages[i]
-		if stage.ID == nil {
-			stageID := encryption.GenerateID()
-			stage.ID = utils.Uint64ToStrPtr(stageID)
+	// Process new and updated course steps
+	for i := range request.Modules {
+		module := &request.Modules[i]
+		if module.ID == nil {
+			moduleID := encryption.GenerateID()
+			module.ID = utils.Uint64ToStrPtr(moduleID)
 		}
 
-		for j := range stage.CourseItems {
-			item := &stage.CourseItems[j]
-			if item.ID == nil {
-				itemID := encryption.GenerateID()
-				item.ID = utils.Uint64ToStrPtr(itemID)
+		for j := range module.CourseSteps {
+			step := &module.CourseSteps[j]
+			if step.ID == nil {
+				stepID := encryption.GenerateID()
+				step.ID = utils.Uint64ToStrPtr(stepID)
 				updateFiles = append(updateFiles, git.File{
-					Path:      *item.ID,
-					Content:   encryption.Base64Encode(*item.Content),
+					Path:      *step.ID,
+					Content:   *step.Content,
 					Operation: git.OperationCreate,
 				})
-			} else if item.Updated != nil && *item.Updated {
+			} else if step.Updated != nil && *step.Updated {
 				updateFiles = append(updateFiles, git.File{
-					Path:      *item.ID,
-					Content:   encryption.Base64Encode(*item.Content),
+					Path:      *step.ID,
+					Content:   *step.Content,
 					Operation: git.OperationUpdate,
 				})
 			}
-			item.Content = nil
-			item.Updated = nil
+			step.Content = nil
+			step.Updated = nil
 		}
 	}
 	return request, updateFiles, nil

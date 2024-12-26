@@ -9,8 +9,8 @@ import (
 
 func init() {
 	db.GetDB().AutoMigrate(&Course{})
-	db.GetDB().AutoMigrate(&CourseStage{})
-	db.GetDB().AutoMigrate(&CourseItem{})
+	db.GetDB().AutoMigrate(&CourseModule{})
+	db.GetDB().AutoMigrate(&CourseStep{})
 	db.GetDB().AutoMigrate(&CourseImage{})
 	db.GetDB().AutoMigrate(&CourseRevision{})
 }
@@ -24,11 +24,11 @@ type Course struct {
 	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
 
-	CourseStages *[]CourseStage `json:"course_stages,omitempty" gorm:"foreignKey:CourseID"`
+	CourseModules *[]CourseModule `json:"course_modules,omitempty" gorm:"foreignKey:CourseID"`
 }
 
-// CourseStage type / table
-type CourseStage struct {
+// CourseModule type / table
+type CourseModule struct {
 	ID        uint64    `json:"id,string" gorm:"primaryKey"`
 	CourseID  uint64    `json:"course_id,string" gorm:"not null;index"`
 	Position  int       `json:"position"`
@@ -39,7 +39,7 @@ type CourseStage struct {
 
 	// Foreign key
 	Course      *Course       `json:"course,omitempty" gorm:"foreignKey:CourseID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
-	CourseItems *[]CourseItem `json:"course_items,omitempty" gorm:"foreignKey:StageID"`
+	CourseSteps *[]CourseStep `json:"course_steps,omitempty" gorm:"foreignKey:ModuleID"`
 }
 
 type CourseType int8
@@ -63,10 +63,10 @@ func ParseStringToCourseType(str string) (CourseType, bool) {
 	return c, ok
 }
 
-// CourseItem type / table
-type CourseItem struct {
+// CourseStep type / table
+type CourseStep struct {
 	ID        uint64     `json:"id,string" gorm:"primaryKey"`
-	StageID   uint64     `json:"stage_id,string" gorm:"not null;index"`
+	ModuleID  uint64     `json:"module_id,string" gorm:"not null;index"`
 	Position  int        `json:"position"`
 	Type      CourseType `json:"type" gorm:"not null"`
 	Name      string     `json:"name" gorm:"not null;size:255"`
@@ -75,7 +75,7 @@ type CourseItem struct {
 	CreatedAt time.Time  `json:"created_at" gorm:"autoCreateTime"`
 
 	// Foreign key
-	Stage *CourseStage `json:"stage,omitempty" gorm:"foreignKey:StageID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
+	Module *CourseModule `json:"module,omitempty" gorm:"foreignKey:ModuleID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
 }
 
 // CourseImage type / table
@@ -111,4 +111,29 @@ type CourseRevision struct {
 	Course   *Course `json:"course,omitempty" gorm:"foreignKey:CourseID;references:ID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
 	Editor   *User   `json:"editor,omitempty" gorm:"foreignKey:EditorID;references:ID;constraint:OnDelete:SET NULL"`
 	Approver *User   `json:"approver,omitempty" gorm:"foreignKey:ApproverID;references:ID;constraint:OnDelete:SET NULL"`
+}
+
+type ProgessState int8
+
+const (
+	NotStart ProgessState = iota
+	Pause
+	InProgess
+	Finish
+	Restart
+)
+
+type CourseProgess struct {
+	ID            uint64       `json:"id,string" gorm:"primaryKey"`
+	CourseID      uint64       `json:"course_id,string" gorm:"not null;index"`
+	LearnerID     uint64       `json:"learner_id,string" gorm:"not null"`
+	State         ProgessState `json:"state"`
+	CurrentModule uint8        `json:"current_module"`
+	CurrentStep   uint8        `json:"current_step"`
+	FinishAt      time.Time    `json:"finish_at"`
+	UpdatedAt     time.Time    `json:"updated_at" gorm:"autoUpdateTime"`
+	StartedAt     time.Time    `json:"stated_at" gorm:"autoCreateTime"`
+
+	Course  *Course `json:"course,omitempty" gorm:"foreignKey:CourseID;references:ID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
+	Learner *User   `json:"editor,omitempty" gorm:"foreignKey:LearnerID;references:ID;constraint:OnDelete:SET NULL"`
 }

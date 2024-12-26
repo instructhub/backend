@@ -55,32 +55,32 @@ func ApproveRevision(c *gin.Context) {
 		return
 	}
 
-	// Prepare course stages and items for update
-	needUpdateStages, needUpdateItems, needCreateStages, needCreateItems := prepareCourseData(courseID, revision, updateRequest)
+	// Prepare course modules and steps for update
+	needUpdateModules, needUpdateSteps, needCreateModules, needCreateSteps := prepareCourseData(courseID, revision, updateRequest)
 
-	// Update stages and items in the database
-	err = updateCourseStages(needUpdateStages)
+	// Update modules and steps in the database
+	err = updateCourseModules(needUpdateModules)
 	if err != nil {
-		utils.ServerErrorResponse(c, 500, "Error updating stage data", utils.ErrSaveData, err)
+		utils.ServerErrorResponse(c, 500, "Error updating module data", utils.ErrSaveData, err)
 		return
 	}
 
-	err = updateCourseItems(needUpdateItems)
+	err = updateCourseSteps(needUpdateSteps)
 	if err != nil {
-		utils.ServerErrorResponse(c, 500, "Error updating item data", utils.ErrSaveData, err)
+		utils.ServerErrorResponse(c, 500, "Error updating step data", utils.ErrSaveData, err)
 		return
 	}
 
-	// Create new stages and items
-	err = createCourseStages(needCreateStages)
+	// Create new modules and steps
+	err = createCourseModules(needCreateModules)
 	if err != nil {
-		utils.ServerErrorResponse(c, 500, "Error creating new stage data", utils.ErrSaveData, err)
+		utils.ServerErrorResponse(c, 500, "Error creating new module data", utils.ErrSaveData, err)
 		return
 	}
 
-	err = createCourseItems(needCreateItems)
+	err = createCourseSteps(needCreateSteps)
 	if err != nil {
-		utils.ServerErrorResponse(c, 500, "Error creating new item data", utils.ErrSaveData, err)
+		utils.ServerErrorResponse(c, 500, "Error creating new step data", utils.ErrSaveData, err)
 		return
 	}
 
@@ -130,138 +130,138 @@ func fetchCourseDataFromGit(revision models.CourseRevision) (string, error) {
 	return revisionChangeDataString, nil
 }
 
-// prepareCourseData prepares stages and items for update or creation
+// prepareCourseData prepares modules and steps for update or creation
 func prepareCourseData(courseID uint64, revision models.CourseRevision, updateRequest UpdateRequestCourse) (
-	[]models.CourseStage, []models.CourseItem, []models.CourseStage, []models.CourseItem) {
+	[]models.CourseModule, []models.CourseStep, []models.CourseModule, []models.CourseStep) {
 
-	oldCourseStages := map[string]models.CourseStage{}
-	oldCourseItems := map[string]models.CourseItem{}
-	newCourseStages := map[string]CourseStageRequest{}
-	newCourseItems := map[string]CourseItemRequest{}
+	oldCourseModules := map[string]models.CourseModule{}
+	oldCourseSteps := map[string]models.CourseStep{}
+	newCourseModules := map[string]CourseModuleRequest{}
+	newCourseSteps := map[string]CourseStepRequest{}
 
-	needUpdateStages := []models.CourseStage{}
-	needUpdateItems := []models.CourseItem{}
-	needCreateStages := []models.CourseStage{}
-	needCreateItems := []models.CourseItem{}
+	needUpdateModules := []models.CourseModule{}
+	needUpdateSteps := []models.CourseStep{}
+	needCreateModules := []models.CourseModule{}
+	needCreateSteps := []models.CourseStep{}
 
 	// Populate old data
-	for _, stage := range *revision.Course.CourseStages {
-		oldCourseStages[utils.Uint64ToStr(stage.ID)] = stage
-		for _, item := range *stage.CourseItems {
-			oldCourseItems[utils.Uint64ToStr(item.ID)] = item
+	for _, module := range *revision.Course.CourseModules {
+		oldCourseModules[utils.Uint64ToStr(module.ID)] = module
+		for _, step := range *module.CourseSteps {
+			oldCourseSteps[utils.Uint64ToStr(step.ID)] = step
 		}
 	}
 
-	// Process new course stages and items
-	for _, stage := range updateRequest.Stages {
-		newCourseStages[*stage.ID] = stage
-		if _, ok := oldCourseStages[*stage.ID]; !ok {
-			createStage := models.CourseStage{
-				ID:        utils.StrToUint64NoError(*stage.ID),
+	// Process new course modules and steps
+	for _, module := range updateRequest.Modules {
+		newCourseModules[*module.ID] = module
+		if _, ok := oldCourseModules[*module.ID]; !ok {
+			createModule := models.CourseModule{
+				ID:        utils.StrToUint64NoError(*module.ID),
 				CourseID:  courseID,
-				Position:  stage.Position,
-				Name:      stage.Name,
+				Position:  module.Position,
+				Name:      module.Name,
 				UpdatedAt: time.Now(),
 				CreatedAt: time.Now(),
 				Active:    utils.BoolPtr(true),
 			}
-			needCreateStages = append(needCreateStages, createStage)
+			needCreateModules = append(needCreateModules, createModule)
 		}
 
-		for _, item := range stage.CourseItems {
-			newCourseItems[*item.ID] = item
-			if _, ok := oldCourseItems[*item.ID]; !ok {
-				createItem := models.CourseItem{
-					ID:        utils.StrToUint64NoError(*item.ID),
-					StageID:   utils.StrToUint64NoError(*stage.ID),
-					Position:  item.Position,
-					Name:      item.Name,
-					Type:      item.Type,
+		for _, step := range module.CourseSteps {
+			newCourseSteps[*step.ID] = step
+			if _, ok := oldCourseSteps[*step.ID]; !ok {
+				createStep := models.CourseStep{
+					ID:        utils.StrToUint64NoError(*step.ID),
+					ModuleID:  utils.StrToUint64NoError(*module.ID),
+					Position:  step.Position,
+					Name:      step.Name,
+					Type:      step.Type,
 					Active:    utils.BoolPtr(true),
 					UpdatedAt: time.Now(),
 					CreatedAt: time.Now(),
 				}
-				needCreateItems = append(needCreateItems, createItem)
+				needCreateSteps = append(needCreateSteps, createStep)
 			}
 		}
 	}
 
-	// Identify stages and items to update or delete
-	for i := range *revision.Course.CourseStages {
-		stage := &(*revision.Course.CourseStages)[i]
-		if newStage, ok := newCourseStages[utils.Uint64ToStr(stage.ID)]; !ok {
+	// Identify modules and steps to update or delete
+	for i := range *revision.Course.CourseModules {
+		module := &(*revision.Course.CourseModules)[i]
+		if newModule, ok := newCourseModules[utils.Uint64ToStr(module.ID)]; !ok {
 			// Mark for deletion
-			stage.Active = utils.BoolPtr(false)
-			needUpdateStages = append(needUpdateStages, *stage)
-		} else if newStage.Position != stage.Position || newStage.Name != stage.Name {
+			module.Active = utils.BoolPtr(false)
+			needUpdateModules = append(needUpdateModules, *module)
+		} else if newModule.Position != module.Position || newModule.Name != module.Name {
 			// Mark for update
-			stage.Position = newStage.Position
-			stage.Name = newStage.Name
-			stage.UpdatedAt = time.Now()
-			needUpdateStages = append(needUpdateStages, *stage)
+			module.Position = newModule.Position
+			module.Name = newModule.Name
+			module.UpdatedAt = time.Now()
+			needUpdateModules = append(needUpdateModules, *module)
 		}
 
-		for j := range *stage.CourseItems {
-			item := &(*stage.CourseItems)[j]
-			if newItem, ok := newCourseItems[utils.Uint64ToStr(item.ID)]; !ok {
+		for j := range *module.CourseSteps {
+			step := &(*module.CourseSteps)[j]
+			if newStep, ok := newCourseSteps[utils.Uint64ToStr(step.ID)]; !ok {
 				// Mark for deletion
-				item.Active = utils.BoolPtr(false)
-				needUpdateItems = append(needUpdateItems, *item)
-			} else if item.Name != newItem.Name || item.Position != newItem.Position {
+				step.Active = utils.BoolPtr(false)
+				needUpdateSteps = append(needUpdateSteps, *step)
+			} else if step.Name != newStep.Name || step.Position != newStep.Position {
 				// Mark for update
-				item.Position = newItem.Position
-				item.Name = newItem.Name
-				item.UpdatedAt = time.Now()
-				needUpdateItems = append(needUpdateItems, *item)
+				step.Position = newStep.Position
+				step.Name = newStep.Name
+				step.UpdatedAt = time.Now()
+				needUpdateSteps = append(needUpdateSteps, *step)
 			}
 		}
 	}
 
-	return needUpdateStages, needUpdateItems, needCreateStages, needCreateItems
+	return needUpdateModules, needUpdateSteps, needCreateModules, needCreateSteps
 }
 
-// updateCourseStages updates existing course stages in the database
-func updateCourseStages(needUpdateStages []models.CourseStage) error {
-	for _, stage := range needUpdateStages {
-		result := queries.UpdateCourseStage(stage)
+// updateCourseModules updates existing course modules in the database
+func updateCourseModules(needUpdateModules []models.CourseModule) error {
+	for _, module := range needUpdateModules {
+		result := queries.UpdateCourseModule(module)
 		if result.Error != nil || result.RowsAffected == 0 {
-			return fmt.Errorf("failed to update stage data")
+			return fmt.Errorf("failed to update module data")
 		}
 	}
 	return nil
 }
 
-// updateCourseItems updates existing course items in the database
-func updateCourseItems(needUpdateItems []models.CourseItem) error {
-	for _, item := range needUpdateItems {
-		result := queries.UpdateCourseItem(item)
+// updateCourseSteps updates existing course steps in the database
+func updateCourseSteps(needUpdateSteps []models.CourseStep) error {
+	for _, step := range needUpdateSteps {
+		result := queries.UpdateCourseStep(step)
 		if result.Error != nil || result.RowsAffected == 0 {
-			return fmt.Errorf("failed to update item data")
+			return fmt.Errorf("failed to update step data")
 		}
 	}
 	return nil
 }
 
-// createCourseStages creates new course stages in the database
-func createCourseStages(needCreateStages []models.CourseStage) error {
-	if len(needCreateStages) == 0 {
+// createCourseModules creates new course modules in the database
+func createCourseModules(needCreateModules []models.CourseModule) error {
+	if len(needCreateModules) == 0 {
 		return nil
 	}
-	result := queries.CreateCourseStages(needCreateStages)
+	result := queries.CreateCourseModules(needCreateModules)
 	if result.Error != nil || result.RowsAffected == 0 {
-		return fmt.Errorf("failed to create stage data")
+		return fmt.Errorf("failed to create module data")
 	}
 	return nil
 }
 
-// createCourseItems creates new course items in the database
-func createCourseItems(needCreateItems []models.CourseItem) error {
-	if len(needCreateItems) == 0 {
+// createCourseSteps creates new course steps in the database
+func createCourseSteps(needCreateSteps []models.CourseStep) error {
+	if len(needCreateSteps) == 0 {
 		return nil
 	}
-	result := queries.CreateCourseItems(needCreateItems)
+	result := queries.CreateCourseSteps(needCreateSteps)
 	if result.Error != nil || result.RowsAffected == 0 {
-		return fmt.Errorf("failed to create item data")
+		return fmt.Errorf("failed to create step data")
 	}
 	return nil
 }
