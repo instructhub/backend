@@ -5,6 +5,7 @@ import (
 	"time"
 
 	db "github.com/instructhub/backend/pkg/database"
+	pq "github.com/lib/pq"
 )
 
 func init() {
@@ -13,6 +14,7 @@ func init() {
 	db.GetDB().AutoMigrate(&CourseStep{})
 	db.GetDB().AutoMigrate(&CourseImage{})
 	db.GetDB().AutoMigrate(&CourseRevision{})
+	db.GetDB().AutoMigrate(&CourseLandingPage{})
 }
 
 // Course type / table
@@ -24,7 +26,8 @@ type Course struct {
 	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
 
-	CourseModules *[]CourseModule `json:"course_modules,omitempty" gorm:"foreignKey:CourseID"`
+	CourseModules     *[]CourseModule    `json:"course_modules,omitempty" gorm:"foreignKey:CourseID"`
+	CourseLandingPage *CourseLandingPage `json:"course_landing_page,omitempty" gorm:"foreignKey:CourseID"`
 }
 
 // CourseModule type / table
@@ -136,4 +139,20 @@ type CourseProgess struct {
 
 	Course  *Course `json:"course,omitempty" gorm:"foreignKey:CourseID;references:ID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
 	Learner *User   `json:"editor,omitempty" gorm:"foreignKey:LearnerID;references:ID;constraint:OnDelete:SET NULL"`
+}
+
+type CourseLandingPage struct {
+	CourseID       uint64          `json:"course_id,string" gorm:"not null"`
+	Description    *string         `json:"description,omitempty"`
+	ImageURL       *string         `json:"image_url,omitempty"`
+	VideoURL       *string         `json:"video_url,omitempty"`
+	SEOKeywords    *pq.StringArray `json:"seo_keywords,omitempty" gorm:"type:text[]"`
+	Outcomes       *pq.StringArray `json:"outcomes,omitempty" gorm:"type:text[]"`
+	Prerequisites  *pq.StringArray `json:"prerequisites,omitempty" gorm:"type:text[]"`
+	TargetAudience *pq.StringArray `json:"target_audience,omitempty" gorm:"type:text[]"`
+
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+
+	Course *Course `json:"course,omitempty" gorm:"foreignKey:CourseID;references:ID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE"`
 }

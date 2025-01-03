@@ -99,3 +99,22 @@ func UpdateCourseRevision(revision models.CourseRevision) *gorm.DB {
 	result := db.GetDB().Save(&revision)
 	return result
 }
+
+// Get course landing page data
+func GetCourseLandingPage(courseID uint64) (models.CourseLandingPage, *gorm.DB) {
+	var landingPage models.CourseLandingPage
+	result := db.GetDB().Where("course_id = ?", courseID).First(&landingPage)
+	return landingPage, result
+}
+
+// Create course landing page
+func CreateCourseLandingPage(landingPage models.CourseLandingPage) *gorm.DB {
+	result := db.GetDB().Create(&landingPage)
+	return result
+}
+
+// Update course revision
+func UpdateCourseLandingPage(landingPage models.CourseLandingPage) *gorm.DB {
+	result := db.GetDB().Model(&landingPage).Where("course_id = ?", landingPage.CourseID).Updates(&landingPage)
+	return result
+}
